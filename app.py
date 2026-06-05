@@ -11,7 +11,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🦖 EMOJI T-REX: PRO")
+st.title("🦖 EMOJI T-REX: ACCIÓN TOTAL")
 st.write("Pulsa **Espacio** para saltar | Mantén **Flecha Abajo** para agacharte.")
 
 codigo_juego = """
@@ -33,15 +33,11 @@ codigo_juego = """
   // --- VARIABLES ---
   const SUELO_Y = 170;
   let dino = { x: 50, y: SUELO_Y, velY: 0, ancho: 35, alto: 40, agachado: false };
-  
-  // Obstáculo dinámico (Cactus o Pájaro)
   let obstaculo = { x: 600, y: SUELO_Y + 5, ancho: 25, alto: 35, tipo: 'cactus' };
-  
   let nubes = [ {x: 100, y: 40, vel: 0.5}, {x: 350, y: 70, vel: 0.3}, {x: 550, y: 30, vel: 0.4} ];
   
   let gravedad = 1.3;
   let puntuacion = 0;
-  // Recuperar récord del navegador
   let maxPuntuacion = localStorage.getItem("dinoHighScore") || 0; 
   let velocidadJuego = 6;
   let estado = 'INICIO';
@@ -78,11 +74,13 @@ codigo_juego = """
   }
 
   function generarObstaculo() {
-      obstaculo.x = canvas.width + Math.random() * 200;
-      // 30% de probabilidad de que sea un pájaro si la puntuación es mayor a 100
-      if (puntuacion > 100 && Math.random() < 0.3) {
+      // Aparece a una distancia aleatoria (entre 50 y 350 píxeles fuera de la pantalla)
+      obstaculo.x = canvas.width + 50 + Math.random() * 300;
+      
+      // 50% probabilidad de Águila, 50% probabilidad de Cactus
+      if (Math.random() < 0.5) {
           obstaculo.tipo = 'pajaro';
-          obstaculo.y = SUELO_Y - 30; // Vuela a media altura
+          obstaculo.y = SUELO_Y - 30; // Vuela a media altura para obligarte a agacharte
           obstaculo.ancho = 35;
           obstaculo.alto = 20;
       } else {
@@ -103,13 +101,11 @@ codigo_juego = """
     ctx.strokeStyle = "#333"; ctx.lineWidth = 3; ctx.beginPath(); 
     ctx.moveTo(0, SUELO_Y + 40); ctx.lineTo(canvas.width, SUELO_Y + 40); ctx.stroke();
 
-    // Textos de Puntuación
     ctx.fillStyle = "#333"; ctx.font = "bold 16px 'Courier New'"; 
     ctx.textAlign = "right";
     ctx.fillText("HI: " + Math.floor(maxPuntuacion).toString().padStart(5, '0') + "  " + Math.floor(puntuacion).toString().padStart(5, '0'), canvas.width - 20, 20);
     ctx.textAlign = "left";
 
-    // Dibujar Obstáculo
     ctx.font = "40px Arial";
     if (obstaculo.tipo === 'cactus') {
         ctx.fillText("🌵", obstaculo.x, obstaculo.y);
@@ -117,17 +113,15 @@ codigo_juego = """
         ctx.fillText("🦅", obstaculo.x, obstaculo.y);
     }
 
-    // Dibujar Dino
     ctx.font = "40px Arial";
     if (estado === 'GAMEOVER') {
         ctx.fillText("😵", dino.x, dino.y);
     } else if (dino.agachado && dino.y === SUELO_Y) {
-        ctx.fillText("🐊", dino.x, dino.y + 10); // Cocodrilo más bajito
+        ctx.fillText("🐊", dino.x, dino.y + 10);
     } else {
         ctx.fillText("🦖", dino.x, dino.y);
     }
 
-    // Pantallas superpuestas
     if (estado === 'INICIO') {
         ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.font = "bold 24px 'Courier New'";
@@ -146,19 +140,16 @@ codigo_juego = """
   function bucle() {
     if (estado !== 'JUGANDO') return;
 
-    // Físicas
     if (!dino.agachado || dino.y < SUELO_Y) {
         dino.velY += gravedad;
         dino.y += dino.velY;
     } else {
-        // Si se agacha, cae rápido
         dino.velY += gravedad * 2; 
         dino.y += dino.velY;
     }
     
     if (dino.y > SUELO_Y) { dino.y = SUELO_Y; dino.velY = 0; }
 
-    // Movimiento
     obstaculo.x -= velocidadJuego;
     if (obstaculo.x < -50) { generarObstaculo(); }
     
@@ -170,16 +161,14 @@ codigo_juego = """
     puntuacion += 0.1;
     velocidadJuego += 0.002;
 
-    // Hitboxes (Diferentes si está agachado)
     let dH = { x: dino.x + 5, y: dino.y + 5, w: dino.ancho - 10, h: dino.alto - 10 };
     if (dino.agachado && dino.y === SUELO_Y) {
-        dH.y = dino.y + 20; // Hitbox más baja
+        dH.y = dino.y + 20; 
         dH.h = dino.alto - 20;
     }
     
     let cH = { x: obstaculo.x + 10, y: obstaculo.y + 10, w: obstaculo.ancho - 15, h: obstaculo.alto - 10 };
 
-    // Detección de colisión
     if (dH.x < cH.x + cH.w && dH.x + dH.w > cH.x && dH.y < cH.y + cH.h && dH.h + dH.y > cH.y) {
         estado = 'GAMEOVER';
         if (puntuacion > maxPuntuacion) {
