@@ -30,9 +30,9 @@ codigo_juego = """
   const ctx = canvas.getContext("2d");
 
   // --- ⚠️ PEGA TUS ENLACES RAW AQUÍ ⚠️ ---
-  const urlSoldado = "PEGAR_TU_URL_RAW_DEL_SOLDADO_AQUI"; 
-  const urlTanque = "PEGAR_TU_URL_RAW_DEL_TANQUE_AQUI";
-  const urlHelicoptero = "PEGAR_TU_URL_RAW_DEL_HELICOPTERO_AQUI";
+  const urlSoldado = "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/soldado.png"; 
+  const urlTanque = "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/tanque.png";
+  const urlHelicoptero = "Phttps://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/helicoptero.png";
 
   // --- CARGA DE IMÁGENES SEGURA ---
   // crossOrigin = "anonymous" evita que el navegador bloquee el juego
@@ -111,13 +111,13 @@ codigo_juego = """
 
     // Dibujar Enemigos (Si la URL falla o está vacía, dibuja un recuadro negro por seguridad)
     if (obstaculo.tipo === 'tanque') {
-        if(imgTanque.complete && imgTanque.naturalHeight !== 0 && urlTanque !== "https://github.com/JosePriego/Pruebas-de-juegos/blob/main/tanque.png?raw=true") {
+        if(imgTanque.complete && imgTanque.naturalHeight !== 0 && urlTanque !== "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/tanque.png") {
             ctx.drawImage(imgTanque, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
         } else {
             ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
         }
     } else {
-        if(imgHeli.complete && imgHeli.naturalHeight !== 0 && urlHelicoptero !== "https://github.com/JosePriego/Pruebas-de-juegos/blob/main/helicoptero.png?raw=true") {
+        if(imgHeli.complete && imgHeli.naturalHeight !== 0 && urlHelicoptero !== "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/helicoptero.png") {
             ctx.drawImage(imgHeli, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
         } else {
             ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
@@ -133,7 +133,7 @@ codigo_juego = """
     // Dibujar Jugador
     if (estado === 'GAMEOVER') {
         ctx.fillStyle = 'red'; ctx.fillRect(jugador.x, jugador.y + 30, jugador.ancho, jugador.alto - 30);
-    } else if (imgSoldado.complete && imgSoldado.naturalHeight !== 0 && urlSoldado !== "https://github.com/JosePriego/Pruebas-de-juegos/blob/main/soldado.png?raw=true") {
+    } else if (imgSoldado.complete && imgSoldado.naturalHeight !== 0 && urlSoldado !== "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/soldado.png") {
         if (jugador.agachado && jugador.y === SUELO_Y) {
             ctx.drawImage(imgSoldado, jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25);
         } else {
