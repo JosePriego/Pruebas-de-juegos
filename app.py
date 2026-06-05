@@ -1,165 +1,213 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Juego del T-Rex", layout="centered")
+# Configuración de página
+st.set_page_config(page_title="Pixel T-Rex Runner", layout="centered", page_icon="🦖")
 
-st.title("🦖 Juego del Dinosaurio")
-st.write("Haz **clic** dentro del recuadro o usa la **barra espaciadora** para saltar.")
+# Estilo CSS para la página de Streamlit
+st.markdown("""
+<style>
+    .reportview-container .main .block-container{ padding-top: 2rem; }
+    h1 { color: #535353; font-family: 'Courier New', Courier, monospace; text-align: center; }
+    .stMarkdown p { text-align: center; color: #757575; font-family: 'Courier New', Courier, monospace;}
+</style>
+""", unsafe_allow_html=True)
 
+st.title("🦖 PIXEL T-REX RUNNER")
+st.write("Haz **clic** en el recuadro o pulsa **Espacio** para saltar.")
+
+# --- EL MOTOR DEL JUEGO (HTML/JS) CON GRÁFICOS INCRUSTADOS ---
 codigo_juego = """
 <!DOCTYPE html>
 <html>
 <head>
 <style>
-  body { display: flex; justify-content: center; margin: 0; background-color: #f0f2f6; overflow: hidden; user-select: none; }
-  canvas { border: 2px solid #333; background-color: #ffffff; border-radius: 5px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); cursor: pointer; }
+  body { display: flex; justify-content: center; margin: 0; background-color: #f7f7f7; overflow: hidden; user-select: none; font-family: 'Courier New', Courier, monospace; }
+  canvas { border-bottom: 2px solid #535353; background-color: #ffffff; cursor: pointer; }
 </style>
 </head>
 <body>
-<canvas id="pantallaJuego" width="600" height="200" tabindex="1"></canvas>
+<canvas id="juego" width="600" height="200" tabindex="1"></canvas>
 <script>
-  const canvas = document.getElementById("pantallaJuego");
+  const canvas = document.getElementById("juego");
   const ctx = canvas.getContext("2d");
-  
-  let dinoY = 150;
-  let velY = 0;
-  let gravedad = 1.2;
-  let enSalto = false;
-  let cactusX = 600;
+
+  // --- GRÁFICOS (IMÁGENES ENCRIPTADAS EN BASE64) ---
+  const imgDinoQuieto = new Image();
+  imgDinoQuieto.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAoAgMAAADeAnXQAAAACVBMVEUAAAAzMzP///86mZ7SAAAAAXRSTlMAQObYZgAAAFNJREFUGNNjYBgFhANMDIwMDEz/Gf4f4GBwYGB4//8fA8N/hv8HOAYwPPj/E8oCYf//A6kBGeCYD6SFZ4BjPpAWngGO+UBaeAY45gNpoRoYfAAAFZon82F4XzkAAAAASUVORK5CYII=";
+
+  const imgDinoCorre1 = new Image();
+  imgDinoCorre1.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAoAgMAAADeAnXQAAAACVBMVEUAAAAzMzP///86mZ7SAAAAAXRSTlMAQObYZgAAAFhJREFUGNNjYBgFhANMDIwMDEz/Gf4f4GBwYGB4//8fA8N/hv8HOAYwPPj/E8oCYf//A6kBGeCYD6SFZ4BjPpAWngGO+UBaeAY45gNpoRoY5gNpYToYpQEAF8EnD5e0WlQAAAAASUVORK5CYII=";
+
+  const imgDinoCorre2 = new Image();
+  imgDinoCorre2.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAoAgMAAADeAnXQAAAACVBMVEUAAAAzMzP///86mZ7SAAAAAXRSTlMAQObYZgAAAFhJREFUGNNjYBgFhANMDIwMDEz/Gf4f4GBwYGB4//8fA8N/hv8HOAYwPPj/E8oCYf//A6kBGeCYD6SFZ4BjPpAWngGO+UBaeAY45gNpoRoY5gNpYRoYmQEAG9UnD/1628UAAAAASUVORK5CYII=";
+
+  const imgDinoChoca = new Image();
+  imgDinoChoca.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAoAgMAAADeAnXQAAAACVBMVEUAAAAzMzP///86mZ7SAAAAAXRSTlMAQObYZgAAAFBJREFUGNNjYBgFhANMDIwMDEz/Gf4f4GBwYGB4//8fA8N/hv8HOAYwPPj/E8oCYf//A6kBGeCYD6SFZ4BjPpAWngGO+UBaeAY45gNpoRoY5gMACVkoM8R4eK0AAAAASUVORK5CYII=";
+
+  const imgCactus = new Image();
+  imgCactus.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAoAgMAAAA96F9bAAAACVBMVEUAAAAzMzP///86mZ7SAAAAAXRSTlMAQObYZgAAADlJREFUGNNjYMAOGDAAByYGAZAEZidAOYLEmYDSGEpY5YgS5f8ZSmBKEMU4FUhVjCpxYpAnmBlIMwMAtH4Tf0Fj6UIAAAAASUVORK5CYII=";
+
+  const imgNube = new Image();
+  imgNube.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAANAgMAAADbM4PMAAAACVBMVEUAAADMzMz///959M45AAAAAXRSTlMAQObYZgAAAD5JREFUGNNjYBAEYSNDY4MHA8OChv+DDP8ZGP4zMvwPAGJDGf4bMfxnAGIsBf7/D0AGKDD8D2DYf2DAWAcBAF09E76Zp5T3AAAAA4RSTlMAQObYZgAAAFVJREFUGNNjYBgFhANMDIwMDFz/Gf4fYGB4z/D/AIMjA8v/fwYGA8OChv+DGBgFGB48fOigqKhoKKGoCKEGCR88hEgj9P///z8Gg/8M///DBMCEGB4AFvIat3N0B+MAAAAASUVORK5CYII=";
+
+  // --- VARIABLES Y ESTADO ---
+  let frame = 0;
+  const SUELO_Y = 150;
+  let dino = { x: 50, y: SUELO_Y, velY: 0, ancho: 36, alto: 40, frameAnim: 0 };
+  let cactus = { x: 600, y: SUELO_Y + 5, ancho: 20, alto: 35 };
+  let nubes = [ {x: 150, y: 50, vel: 0.5}, {x: 400, y: 30, vel: 0.3}, {x: 550, y: 70, vel: 0.4} ];
+  let sueloOffset = 0;
+
+  let gravedad = 1.3;
   let puntuacion = 0;
-  let gameOver = false;
-  let juegoIniciado = false;
+  let velocidadJuego = 6;
+  let estado = 'INICIO'; // INICIO, JUGANDO, GAMEOVER
 
-  // Función principal para saltar o iniciar el juego
-  function accionSaltar() {
-      // Si el juego no ha empezado, lo iniciamos
-      if (!juegoIniciado) {
-          juegoIniciado = true;
-          gameOver = false;
-          requestAnimationFrame(actualizar);
-          return;
-      }
-      
-      // Si hemos perdido, reiniciamos las variables
-      if (gameOver) {
-          dinoY = 150;
-          velY = 0;
-          cactusX = 600;
-          puntuacion = 0;
-          gameOver = false;
-          enSalto = false;
-          requestAnimationFrame(actualizar);
-          return;
-      }
+  // --- CONTROLES ---
+  function saltar() {
+    if (estado === 'INICIO') { estado = 'JUGANDO'; }
+    else if (estado === 'GAMEOVER') { reiniciar(); }
+    else if (estado === 'JUGANDO' && dino.y === SUELO_Y) {
+      dino.velY = -15;
+    }
+  }
+  canvas.addEventListener("keydown", (e) => { if(e.code === "Space") { e.preventDefault(); saltar(); }});
+  canvas.addEventListener("mousedown", saltar);
+  canvas.focus();
 
-      // Si estamos jugando y no estamos en el aire, saltamos
-      if (!enSalto) {
-          velY = -14;
-          enSalto = true;
-      }
+  function reiniciar() {
+    dino.y = SUELO_Y; dino.velY = 0;
+    cactus.x = 600;
+    puntuacion = 0; velocidadJuego = 6;
+    estado = 'JUGANDO';
   }
 
-  // Controles: Teclado (Barra espaciadora)
-  canvas.addEventListener("keydown", function(e) {
-      if(e.code === "Space") {
-          e.preventDefault();
-          accionSaltar();
-      }
-  });
+  // --- BUCLE PRINCIPAL ---
+  function bucle() {
+    frame++;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Controles: Ratón o Pantalla táctil (Clic)
-  window.addEventListener("mousedown", accionSaltar);
-  window.addEventListener("touchstart", function(e) {
-      e.preventDefault(); // Evita hacer zoom en móviles
-      accionSaltar();
-  }, {passive: false});
+    // 1. Dibujar elementos estáticos de fondo
+    dibujarSuelo();
+    nubes.forEach(n => dibujarNube(n));
 
-  // Dibujar la pantalla de inicio
-  function dibujarPantallaInicio() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Suelo
-      ctx.beginPath();
-      ctx.moveTo(0, 190);
-      ctx.lineTo(600, 190);
-      ctx.stroke();
+    if (estado === 'JUGANDO') {
+        // Logica
+        actualizarDino();
+        actualizarCactus();
+        actualizarEntorno();
+        detectarColision();
+        puntuacion += 0.1;
+        velocidadJuego += 0.001;
 
-      // Dinosaurio
-      ctx.fillStyle = "#333333";
-      ctx.fillRect(50, dinoY, 30, 40);
+        // Dibujar
+        dibujarDinoCorre();
+        dibujarCactus();
+    } 
+    else if (estado === 'INICIO') {
+        dibujarDinoQuieto();
+        dibujarTextoCentrado("HAZ CLIC PARA EMPEZAR", "20px", 100);
+    }
+    else if (estado === 'GAMEOVER') {
+        dibujarDinoChoca();
+        dibujarCactus();
+        dibujarTextoCentrado("G A M E  O V E R", "30px", 90);
+        dibujarTextoCentrado("Clic para reintentar", "16px", 120);
+    }
 
-      // Mensaje
-      ctx.fillStyle = "black";
-      ctx.font = "24px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText("Haz clic aquí para empezar", canvas.width / 2, 100);
+    dibujarPuntuacion();
+    requestAnimationFrame(bucle);
   }
 
-  // Bucle principal del juego
-  function actualizar() {
-      if (!juegoIniciado) return;
+  // --- FUNCIONES DE ACTUALIZACIÓN Y DIBUJO ---
 
-      velY += gravedad;
-      dinoY += velY;
-      if (dinoY >= 150) { 
-          dinoY = 150;
-          enSalto = false;
-          velY = 0;
-      }
-
-      cactusX -= 7 + (puntuacion * 0.1); 
-      if (cactusX < -20) {
-          cactusX = 600;
-          puntuacion++;
-      }
-
-      let dinoRect = {x: 50, y: dinoY, w: 30, h: 40};
-      let cactusRect = {x: cactusX, y: 160, w: 20, h: 30};
-
-      if (dinoRect.x < cactusRect.x + cactusRect.w &&
-          dinoRect.x + dinoRect.w > cactusRect.x &&
-          dinoRect.y < cactusRect.y + cactusRect.h &&
-          dinoRect.h + dinoRect.y > cactusRect.y) {
-          gameOver = true;
-      }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.beginPath();
-      ctx.moveTo(0, 190);
-      ctx.lineTo(600, 190);
-      ctx.stroke();
-
-      ctx.fillStyle = "#333333";
-      ctx.fillRect(50, dinoY, 30, 40);
-
-      ctx.fillStyle = "green";
-      ctx.fillRect(cactusX, 160, 20, 30);
-
-      ctx.fillStyle = "black";
-      ctx.font = "20px Arial";
-      ctx.textAlign = "left";
-      ctx.fillText("Puntuación: " + puntuacion, 10, 30);
-
-      if (gameOver) {
-          ctx.fillStyle = "red";
-          ctx.font = "30px Arial";
-          ctx.textAlign = "center";
-          ctx.fillText("¡JUEGO TERMINADO!", canvas.width / 2, 90);
-          
-          ctx.fillStyle = "black";
-          ctx.font = "16px Arial";
-          ctx.fillText("Haz clic para intentar de nuevo", canvas.width / 2, 130);
-      } else {
-          requestAnimationFrame(actualizar);
-      }
+  function actualizarDino() {
+    dino.velY += gravedad;
+    dino.y += dino.velY;
+    if (dino.y > SUELO_Y) { dino.y = SUELO_Y; dino.velY = 0; }
+    // Animación de correr
+    if (frame % 8 === 0) { dino.frameAnim = (dino.frameAnim === 0) ? 1 : 0; }
   }
 
-  // Llamamos a la pantalla de inicio al cargar
-  dibujarPantallaInicio();
+  function actualizarCactus() {
+    cactus.x -= velocidadJuego;
+    if (cactus.x < -cactus.ancho) {
+        cactus.x = canvas.width + Math.random() * 200;
+    }
+  }
+
+  function actualizarEntorno() {
+    // Mover suelo
+    sueloOffset -= velocidadJuego;
+    if (sueloOffset <= -20) sueloOffset = 0;
+    // Mover nubes
+    nubes.forEach(n => {
+        n.x -= n.vel;
+        if (n.x < -40) n.x = canvas.width + 10;
+    });
+  }
+
+  function detectarColision() {
+    // Hitbox ajustada para ser justa
+    let dH = { x: dino.x + 5, y: dino.y + 5, w: dino.ancho - 10, h: dino.alto - 5 };
+    let cH = { x: cactus.x + 2, y: cactus.y + 2, w: cactus.ancho - 4, h: cactus.alto - 2 };
+
+    if (dH.x < cH.x + cH.w && dH.x + dH.w > cH.x && dH.y < cH.y + cH.h && dH.h + dH.y > cH.y) {
+        estado = 'GAMEOVER';
+    }
+  }
+
+  // --- DIBUJANTES ---
+  function dibujarDinoQuieto() { ctx.drawImage(imgDinoQuieto, dino.x, dino.y, dino.ancho, dino.alto); }
+  function dibujarDinoChoca() { ctx.drawImage(imgDinoChoca, dino.x, dino.y, dino.ancho, dino.alto); }
+  function dibujarDinoCorre() {
+    // Si está en el aire, quieto. Si no, alterna patas.
+    if (dino.y < SUELO_Y) { dibujarDinoQuieto(); }
+    else {
+        let img = (dino.frameAnim === 0) ? imgDinoCorre1 : imgDinoCorre2;
+        ctx.drawImage(img, dino.x, dino.y, dino.ancho, dino.alto);
+    }
+  }
+  function dibujarCactus() { ctx.drawImage(imgCactus, cactus.x, cactus.y, cactus.ancho, cactus.alto); }
+  function dibujarNube(n) { ctx.drawImage(imgNube, n.x, n.y); }
+
+  function dibujarSuelo() {
+    ctx.strokeStyle = "#535353"; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.moveTo(0, SUELO_Y + dino.alto); ctx.lineTo(canvas.width, SUELO_Y + dino.alto); ctx.stroke();
+    // Puntos de textura del suelo (efecto parallax simple)
+    ctx.fillStyle = "#f0f0f0";
+    for(let i=0; i<30; i++) {
+        let px = (i*25 + sueloOffset) % canvas.width;
+        if (px < 0) px += canvas.width;
+        ctx.fillRect(px, SUELO_Y + dino.alto + 5, 2, 2);
+    }
+  }
+
+  function dibujarPuntuacion() {
+    ctx.fillStyle = "#535353"; ctx.font = "16px 'Courier New'"; ctx.textAlign = "right";
+    let puntos = Math.floor(puntuacion).toString().padStart(5, '0');
+    ctx.fillText(puntos, canvas.width - 10, 25);
+  }
+
+  function dibujarTextoCentrado(texto, tamaño, y) {
+    ctx.fillStyle = "#535353"; ctx.font = `bold ${tamaño} 'Courier New'`;
+    ctx.textAlign = "center"; ctx.fillText(texto, canvas.width/2, y);
+  }
+
+  // Iniciar
+  bucle();
 </script>
 </body>
 </html>
 """
 
-components.html(codigo_juego, height=250)
+# Renderizar
+components.html(codigo_juego, height=220)
+
+# Botón de reinicio de Streamlit como plan B
+if st.button("🔄 Reiniciar App"):
+    st.rerun()
+
+st.markdown("---")
+st.caption("Gráficos Pixel-Art por IA | Inspirado en el juego de Google Chrome.")
