@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Run & Gun", layout="centered", page_icon="🪖")
 
-# Estilo militar (Verdes oscuros y camuflaje)
+# Estilo de la página
 st.markdown("""
 <style>
     .reportview-container .main .block-container{ padding-top: 2rem; }
@@ -21,8 +21,7 @@ codigo_juego = """
 <head>
 <style>
   body { display: flex; justify-content: center; margin: 0; background-color: #f0f4f0; overflow: hidden; user-select: none; font-family: 'Courier New', Courier, monospace; }
-  /* Marco del juego con colores militares */
-  canvas { border: 4px solid #2b4522; background-color: #e6eedb; border-radius: 5px; cursor: pointer; box-shadow: 0px 8px 0px #1a2e12; }
+  canvas { border: 4px solid #2b4522; background-color: #d1dcc3; border-radius: 5px; cursor: pointer; box-shadow: 0px 8px 0px #1a2e12; }
 </style>
 </head>
 <body>
@@ -30,13 +29,19 @@ codigo_juego = """
 <script>
   const canvas = document.getElementById("juego");
   const ctx = canvas.getContext("2d");
-  ctx.textBaseline = "top";
+
+  // --- CARGA DE IMÁGENES EXTERNAS (PNG) ---
+  const imgSoldado = new Image(); imgSoldado.src = "https://img.icons8.com/color/48/soldier-male.png";
+  const imgTanque = new Image(); imgTanque.src = "https://img.icons8.com/color/48/tank.png";
+  const imgHeli = new Image(); imgHeli.src = "https://img.icons8.com/color/48/helicopter.png";
+  const imgMisil = new Image(); imgMisil.src = "https://img.icons8.com/color/48/missile.png";
+  const imgExplosion = new Image(); imgExplosion.src = "https://img.icons8.com/color/48/boom.png";
+  const imgCalavera = new Image(); imgCalavera.src = "https://img.icons8.com/color/48/skull.png";
 
   // --- VARIABLES ---
   const SUELO_Y = 170;
-  // Cambiamos 'dino' por 'jugador'
-  let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 35, alto: 40, agachado: false };
-  let obstaculo = { x: 600, y: SUELO_Y + 5, ancho: 25, alto: 35, tipo: 'guardia' };
+  let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 40, alto: 45, agachado: false };
+  let obstaculo = { x: 600, y: SUELO_Y + 5, ancho: 45, alto: 40, tipo: 'tanque' };
   let nubes = [ {x: 100, y: 40, vel: 0.5}, {x: 350, y: 70, vel: 0.3}, {x: 550, y: 30, vel: 0.4} ];
   
   let balas = []; 
@@ -66,8 +71,8 @@ codigo_juego = """
       // Disparar
       if((e.code === "KeyX" || e.key === "x") && estado === 'JUGANDO') {
           if (balas.length < 3) {
-              let alturaFuego = jugador.agachado ? jugador.y + 20 : jugador.y + 10;
-              balas.push({ x: jugador.x + 35, y: alturaFuego, w: 20, h: 20 });
+              let alturaFuego = jugador.agachado ? jugador.y + 25 : jugador.y + 15;
+              balas.push({ x: jugador.x + 35, y: alturaFuego, w: 25, h: 10 });
           }
       }
   });
@@ -82,7 +87,7 @@ codigo_juego = """
 
   function reiniciar() {
     jugador.y = SUELO_Y; jugador.velY = 0; jugador.agachado = false;
-    obstaculo.x = 600; obstaculo.tipo = 'guardia'; obstaculo.y = SUELO_Y + 5;
+    obstaculo.x = 600; obstaculo.tipo = 'tanque'; obstaculo.y = SUELO_Y + 5;
     balas = []; 
     explosion.activa = false;
     puntuacion = 0; velocidadJuego = 6;
@@ -93,13 +98,13 @@ codigo_juego = """
       obstaculo.x = canvas.width + 50 + Math.random() * 200;
       if (Math.random() < 0.5) {
           obstaculo.tipo = 'helicoptero';
-          obstaculo.y = SUELO_Y - 10; 
-          obstaculo.ancho = 40; // El helicóptero es un poco más ancho
-          obstaculo.alto = 25;
+          obstaculo.y = SUELO_Y - 20; 
+          obstaculo.ancho = 50; 
+          obstaculo.alto = 35;
       } else {
-          obstaculo.tipo = 'guardia';
-          obstaculo.y = SUELO_Y + 5;
-          obstaculo.ancho = 25;
+          obstaculo.tipo = 'tanque';
+          obstaculo.y = SUELO_Y + 10;
+          obstaculo.ancho = 45;
           obstaculo.alto = 35;
       }
   }
@@ -108,40 +113,53 @@ codigo_juego = """
   function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.font = "40px Arial";
-    nubes.forEach(n => { ctx.fillText("☁️", n.x, n.y); });
+    // Nubes (usamos rectángulos para simular nubes retro)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    nubes.forEach(n => { 
+        ctx.fillRect(n.x, n.y, 40, 15);
+        ctx.fillRect(n.x + 10, n.y - 10, 20, 10);
+    });
 
-    // Suelo estilo militar
+    // Suelo
+    ctx.fillStyle = "#637c3b";
+    ctx.fillRect(0, SUELO_Y + 45, canvas.width, canvas.height);
     ctx.strokeStyle = "#2b4522"; ctx.lineWidth = 4; ctx.beginPath(); 
-    ctx.moveTo(0, SUELO_Y + 40); ctx.lineTo(canvas.width, SUELO_Y + 40); ctx.stroke();
+    ctx.moveTo(0, SUELO_Y + 45); ctx.lineTo(canvas.width, SUELO_Y + 45); ctx.stroke();
 
+    // Textos de Puntuación
     ctx.fillStyle = "#2b4522"; ctx.font = "bold 16px 'Courier New'"; 
     ctx.textAlign = "right";
     ctx.fillText("RÉCORD: " + Math.floor(maxPuntuacion).toString().padStart(5, '0') + "  BAJAS: " + Math.floor(puntuacion).toString().padStart(5, '0'), canvas.width - 20, 20);
     ctx.textAlign = "left";
 
-    // Dibujar Enemigo (Guardia o Helicóptero)
-    ctx.font = "40px Arial";
-    if (obstaculo.tipo === 'guardia') { ctx.fillText("💂", obstaculo.x, obstaculo.y); } 
-    else { ctx.fillText("🚁", obstaculo.x, obstaculo.y); }
-
-    // Dibujar Explosión
-    if (explosion.activa) {
-        ctx.font = "40px Arial";
-        ctx.fillText("💥", explosion.x, explosion.y);
+    // Dibujar Enemigo (Tanque o Helicóptero)
+    if (obstaculo.tipo === 'tanque' && imgTanque.complete) { 
+        ctx.drawImage(imgTanque, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto); 
+    } else if (obstaculo.tipo === 'helicoptero' && imgHeli.complete) { 
+        ctx.drawImage(imgHeli, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto); 
     }
 
-    // Dibujar Proyectiles (Misiles)
-    ctx.font = "20px Arial";
-    balas.forEach(b => { ctx.fillText("🚀", b.x, b.y - 5); });
+    // Dibujar Explosión
+    if (explosion.activa && imgExplosion.complete) {
+        ctx.drawImage(imgExplosion, explosion.x, explosion.y, 50, 50);
+    }
+
+    // Dibujar Proyectiles
+    balas.forEach(b => { 
+        if(imgMisil.complete) ctx.drawImage(imgMisil, b.x, b.y - 10, 30, 30); 
+    });
 
     // Dibujar Soldado
-    ctx.font = "40px Arial";
-    if (estado === 'GAMEOVER') { ctx.fillText("💀", jugador.x, jugador.y); } 
-    else if (jugador.agachado && jugador.y === SUELO_Y) { ctx.fillText("🧎", jugador.x, jugador.y + 10); } 
-    else { ctx.fillText("🏃", jugador.x, jugador.y); }
+    if (estado === 'GAMEOVER' && imgCalavera.complete) { 
+        ctx.drawImage(imgCalavera, jugador.x, jugador.y, jugador.ancho, jugador.alto); 
+    } else if (jugador.agachado && jugador.y === SUELO_Y && imgSoldado.complete) { 
+        // Truco retro: aplastar la imagen para simular que se agacha
+        ctx.drawImage(imgSoldado, jugador.x, jugador.y + 20, jugador.ancho, jugador.alto - 20); 
+    } else if (imgSoldado.complete) { 
+        ctx.drawImage(imgSoldado, jugador.x, jugador.y, jugador.ancho, jugador.alto); 
+    }
 
-    // Pantallas de menú militarizadas
+    // Pantallas de menú
     if (estado === 'INICIO') {
         ctx.fillStyle = "rgba(43, 69, 34, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 24px 'Courier New'";
@@ -172,17 +190,17 @@ codigo_juego = """
     puntuacion += 0.1;
     velocidadJuego += 0.002; 
 
-    let cH = { x: obstaculo.x + 10, y: obstaculo.y + 10, w: obstaculo.ancho - 15, h: obstaculo.alto - 15 };
+    // Hitboxes ajustadas a las imágenes PNG
+    let cH = { x: obstaculo.x + 5, y: obstaculo.y + 5, w: obstaculo.ancho - 10, h: obstaculo.alto - 10 };
 
-    // LÓGICA DE DISPAROS
     for (let i = balas.length - 1; i >= 0; i--) {
-        balas[i].x += 12; // Misiles vuelan un poco más rápido
+        balas[i].x += 12; 
         
         let b = balas[i];
         let bH = { x: b.x, y: b.y, w: b.w, h: b.h };
 
         if (bH.x < cH.x + cH.w && bH.x + bH.w > cH.x && bH.y < cH.y + cH.h && bH.h + bH.y > cH.y) {
-            explosion = { activa: true, x: obstaculo.x, y: obstaculo.y, timer: 10 };
+            explosion = { activa: true, x: obstaculo.x, y: obstaculo.y - 10, timer: 10 };
             puntuacion += 10; 
             generarObstaculo(); 
             balas.splice(i, 1); 
@@ -198,11 +216,10 @@ codigo_juego = """
         if (explosion.timer <= 0) explosion.activa = false;
     }
 
-    // LÓGICA COLISIÓN DEL SOLDADO
-    let dH = { x: jugador.x + 5, y: jugador.y + 5, w: jugador.ancho - 10, h: jugador.alto - 10 };
+    let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
     if (jugador.agachado && jugador.y === SUELO_Y) {
-        dH.y = jugador.y + 20; 
-        dH.h = jugador.alto - 20; 
+        dH.y = jugador.y + 25; 
+        dH.h = jugador.alto - 25; 
     }
 
     if (dH.x < cH.x + cH.w && dH.x + dH.w > cH.x && dH.y < cH.y + cH.h && dH.h + dH.y > cH.y) {
@@ -220,7 +237,8 @@ codigo_juego = """
     }
   }
 
-  dibujar();
+  // Esperar un poquito a que carguen las imágenes antes de dibujar el inicio
+  setTimeout(dibujar, 500);
 
 </script>
 </body>
