@@ -16,7 +16,7 @@ st.markdown("""
 st.title("💀 BOSS RUSH: MODO LEYENDA")
 st.write("**A / D** = Moverse | **W / ESPACIO** = Saltar | **S** = Cubrirse | **X** = Disparar")
 
-# --- LA MAGIA DE PYTHON (INYECCIÓN DE IMÁGENES) ---
+# --- LA MAGIA DE PYTHON ---
 def cargar_imagen_local(nombre_archivo):
     if os.path.exists(nombre_archivo):
         with open(nombre_archivo, "rb") as f:
@@ -44,15 +44,12 @@ codigo_juego = """
   const canvas = document.getElementById("juego");
   const ctx = canvas.getContext("2d");
 
-  // Inyección de imágenes
   const imgSoldado = new Image(); let srcSol = "INYECTAR_SOLDADO"; if(srcSol.length > 50) imgSoldado.src = srcSol;
   const imgTanque = new Image(); let srcTan = "INYECTAR_TANQUE"; if(srcTan.length > 50) imgTanque.src = srcTan;
   const imgHeli = new Image(); let srcHel = "INYECTAR_HELI"; if(srcHel.length > 50) imgHeli.src = srcHel;
 
-  // --- VARIABLES ---
   const SUELO_Y = 200;
   let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 45, alto: 55, agachado: false, vidas: 5, invencible: 0, dir: 1, armaTimer: 0 };
-  
   let jefe = { x: 450, y: SUELO_Y, ancho: 80, alto: 60, tipo: 'tanque', hp: 10, maxHp: 10, timer: 0, estado: 0, escudo: false, visible: true };
   let nivel = 1;
   let nombresJefes = ["", "NIVEL 1: EL NOVATO", "NIVEL 2: EL CÓNDOR", "NIVEL 3: EL ESCUDO", "NIVEL 4: EL FANTASMA", "NIVEL 5: EL COLOSO"];
@@ -63,7 +60,6 @@ codigo_juego = """
   let transicionTimer = 0;
   let cooldownDisparo = 0;
   
-  // Novedades Puntuación y Dificultad
   let puntuacion = 0;
   let siguienteCaja = 100;
   let modoDificil = false;
@@ -77,25 +73,23 @@ codigo_juego = """
               modoDificil = false; iniciarNivel(1); 
           } 
           else if (estadoJuego === 'VICTORIA') {
-              // Si presiona espacio en victoria, juega normal
               modoDificil = false; iniciarNivel(1);
           }
           else if (estadoJuego === 'JUGANDO' && jugador.y === SUELO_Y && !jugador.agachado) { jugador.velY = -15; }
       }
       
-      // Tecla H para el modo difícil
       if (e.code === "KeyH" && estadoJuego === 'VICTORIA') {
           modoDificil = true; iniciarNivel(1);
       }
 
       if ((e.code === "KeyX" || e.key === "x") && estadoJuego === 'JUGANDO') {
           if (cooldownDisparo <= 0) {
-              let limite = jugador.armaTimer > 0 ? 8 : 4; // Doble de balas en pantalla si tienes ráfaga
+              let limite = jugador.armaTimer > 0 ? 8 : 4; 
               if (balas.length < limite) {
                   let alturaFuego = jugador.agachado ? jugador.y + 30 : jugador.y + 20;
                   let posX = jugador.dir === 1 ? jugador.x + 40 : jugador.x - 10;
                   balas.push({ x: posX, y: alturaFuego, w: 15, h: 4, dir: jugador.dir });
-                  cooldownDisparo = jugador.armaTimer > 0 ? 5 : 15; // Dispara 3 veces más rápido
+                  cooldownDisparo = jugador.armaTimer > 0 ? 5 : 15; 
               }
           }
       }
@@ -117,7 +111,7 @@ codigo_juego = """
       balas = []; balasEnemigas = []; explosiones = []; cajas = [];
       jefe.timer = 0; jefe.escudo = false; jefe.visible = true;
       
-      let mult = modoDificil ? 1.5 : 1; // +50% de vida en difícil
+      let mult = modoDificil ? 1.5 : 1; 
       
       if (nivel === 1) { jefe.tipo='tanque'; jefe.maxHp=Math.floor(15*mult); jefe.x=450; jefe.y=SUELO_Y; jefe.ancho=80; jefe.alto=60; }
       if (nivel === 2) { jefe.tipo='helicoptero'; jefe.maxHp=Math.floor(20*mult); jefe.x=400; jefe.y=50; jefe.ancho=90; jefe.alto=50; }
@@ -127,13 +121,15 @@ codigo_juego = """
       
       jefe.hp = jefe.maxHp;
       estadoJuego = 'TRANSICION'; transicionTimer = 150;
-      if (n === 1) requestAnimationFrame(bucle); // Solo iniciamos bucle en nivel 1
+      
+      // SOLO arrancamos el bucle si viene de estar apagado (Nivel 1)
+      if (n === 1) requestAnimationFrame(bucle); 
   }
 
   function recibirDano() {
       if (jugador.invencible <= 0) {
           jugador.vidas--;
-          puntuacion -= 25; // Penalización de puntos
+          puntuacion -= 25; 
           jugador.invencible = 60; 
           explosiones.push({x: jugador.x, y: jugador.y, timer: 15, color: '#ff0000'});
           if (jugador.vidas <= 0) estadoJuego = 'GAMEOVER';
@@ -151,7 +147,6 @@ codigo_juego = """
   }
 
   function dispararJefe(x, y, vx, vy, tipo) {
-      // Las bombas ahora nacen con velocidad Y negativa para caer con gravedad
       if (tipo === 'bomba_fantasma' || tipo === 'bomba_coloso') {
           balasEnemigas.push({ x: x, y: y, velX: vx, velY: -2, tipo: tipo, w: 10, h: 10, rebotes: 0 });
       } else {
@@ -159,52 +154,49 @@ codigo_juego = """
       }
   }
 
-  // --- LÓGICA DE IA DEL JEFE ---
   function actualizarIAJefe() {
       jefe.timer++;
-      let velDisp = modoDificil ? 0.7 : 1; // En difícil disparan más rápido (temporizadores más cortos)
+      let velDisp = modoDificil ? 0.7 : 1; 
       
-      if (nivel === 1) { // EL NOVATO
+      if (nivel === 1) { 
           jefe.x += Math.sin(jefe.timer * 0.05) * 1.5; 
           if (jefe.timer % Math.floor(80 * velDisp) === 0) dispararJefe(jefe.x, jefe.y + 25, -5, 0, 'obus');
       }
-      else if (nivel === 2) { // EL CÓNDOR
+      else if (nivel === 2) { 
           let ciclo = Math.floor(250 * velDisp);
           let t = jefe.timer % ciclo;
-          if (t < ciclo * 0.4) { jefe.y = 50; } // Vuela alto
-          else if (t < ciclo * 0.6) { jefe.y += 3; } // Baja
+          if (t < ciclo * 0.4) { jefe.y = 50; } 
+          else if (t < ciclo * 0.6) { jefe.y += 3; } 
           else if (t < ciclo * 0.8) {
-              jefe.y = SUELO_Y - 20; // A ras de suelo
+              jefe.y = SUELO_Y - 20; 
               if (t === Math.floor(ciclo * 0.7)) dispararJefe(jefe.x, jefe.y + 25, -6, 0, 'obus');
           }
-          else { jefe.y -= 3; } // Sube
+          else { jefe.y -= 3; } 
       }
-      else if (nivel === 3) { // EL ESCUDO
+      else if (nivel === 3) { 
           jefe.x += Math.sin(jefe.timer * 0.03) * 1;
           let t = jefe.timer % Math.floor(250 * velDisp);
           if (t < 150 * velDisp) { jefe.escudo = true; } 
           else {
-              jefe.escudo = false; // Baja el escudo
-              if (t % 20 === 0) dispararJefe(jefe.x, jefe.y + 25, -7, 0, 'obus'); // Ráfaga
+              jefe.escudo = false; 
+              if (t % 20 === 0) dispararJefe(jefe.x, jefe.y + 25, -7, 0, 'obus'); 
           }
       }
-      else if (nivel === 4) { // EL FANTASMA
+      else if (nivel === 4) { 
           let t = jefe.timer % Math.floor(150 * velDisp);
           if (t === 0) {
               jefe.x = Math.random() * 300 + 200; jefe.y = Math.random() * 100 + 40; jefe.visible = true;
           }
           if (t === Math.floor(60 * velDisp)) {
-              // El fantasma lanza bombas con físicas de rebote
               dispararJefe(jefe.x + 20, jefe.y + 30, -3, 0, 'bomba_fantasma');
               dispararJefe(jefe.x + 20, jefe.y + 30, -1, 0, 'bomba_fantasma');
           }
           if (t > 90 * velDisp) jefe.visible = false;
       }
-      else if (nivel === 5) { // EL COLOSO
+      else if (nivel === 5) { 
           jefe.x += Math.sin(jefe.timer * 0.02) * 0.5;
           if (jefe.timer % Math.floor(60 * velDisp) === 0) dispararJefe(jefe.x, jefe.y + 70, -6, 0, 'obus');
           if (jefe.timer % Math.floor(90 * velDisp) === 0) {
-              // El coloso lanza bombas que rebotan infinitamente
               dispararJefe(jefe.x + 30, jefe.y + 20, -4, 0, 'bomba_coloso'); 
           }
       }
@@ -216,7 +208,6 @@ codigo_juego = """
       else { ctx.drawImage(img, x, y, w, h); }
   }
 
-  // --- RENDERIZADO ---
   function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -224,7 +215,6 @@ codigo_juego = """
     ctx.fillStyle = "#222"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, canvas.height);
     ctx.fillStyle = "#111"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, 10);
 
-    // UI Superior
     ctx.fillStyle = "#d32f2f"; ctx.font = "20px Arial";
     let corazones = ""; for(let v=0; v<jugador.vidas; v++) corazones += "❤️";
     ctx.fillText(corazones, 10, 20);
@@ -250,12 +240,8 @@ codigo_juego = """
         ctx.fillText(nombresJefes[nivel], canvas.width/2, 27); ctx.textAlign = "left";
     }
 
-    // Dibujar Cajas
-    cajas.forEach(c => {
-        ctx.font = "24px Arial"; ctx.fillText("🎁", c.x, c.y);
-    });
+    cajas.forEach(c => { ctx.font = "24px Arial"; ctx.fillText("🎁", c.x, c.y); });
 
-    // Dibujar Jefe
     if ((estadoJuego === 'JUGANDO' || estadoJuego === 'TRANSICION') && jefe.visible) {
         if (jefe.tipo === 'tanque') {
             dibujarEntidad(imgTanque, jefe.x, jefe.y, jefe.ancho, jefe.alto, false);
@@ -271,7 +257,6 @@ codigo_juego = """
         }
     }
 
-    // Proyectiles
     balas.forEach(b => { ctx.fillStyle = '#ffaa00'; ctx.fillRect(b.x, b.y, b.w, b.h); });
     balasEnemigas.forEach(be => {
         if (be.tipo === 'obus') { ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(be.x, be.y, 6, 0, Math.PI*2); ctx.fill(); } 
@@ -283,7 +268,6 @@ codigo_juego = """
         ctx.fillStyle = '#ffa500'; ctx.beginPath(); ctx.arc(exp.x + 20, exp.y + 20, 15, 0, Math.PI*2); ctx.fill();
     });
 
-    // Jugador
     if (estadoJuego !== 'GAMEOVER') {
         if (jugador.invencible === 0 || Math.floor(jugador.invencible / 4) % 2 === 0) {
             let invertido = jugador.dir === -1;
@@ -297,7 +281,6 @@ codigo_juego = """
         ctx.fillStyle = '#fff'; ctx.font = "20px Arial"; ctx.fillText("💀", jugador.x+8, jugador.y+40);
     }
 
-    // Pantallas
     if (estadoJuego === 'INICIO') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 24px 'Courier New'";
@@ -336,7 +319,6 @@ codigo_juego = """
     if (cooldownDisparo > 0) cooldownDisparo--;
     if (jugador.armaTimer > 0) jugador.armaTimer--;
 
-    // Controles Jugador
     jugador.agachado = (teclas['ArrowDown'] || teclas['KeyS']) && jugador.y === SUELO_Y;
     if (!jugador.agachado) {
         if (teclas['ArrowRight'] || teclas['KeyD']) { jugador.x += 4; jugador.dir = 1; }
@@ -345,7 +327,6 @@ codigo_juego = """
     if (jugador.x < 0) jugador.x = 0;
     if (jugador.x > canvas.width - jugador.ancho) jugador.x = canvas.width - jugador.ancho;
 
-    // Físicas salto
     if (!jugador.agachado || jugador.y < SUELO_Y) { jugador.velY += 1.0; jugador.y += jugador.velY; } 
     else { jugador.velY += 2.0; jugador.y += jugador.velY; }
     if (jugador.y > SUELO_Y) { jugador.y = SUELO_Y; jugador.velY = 0; }
@@ -356,22 +337,19 @@ codigo_juego = """
     let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
     if (jugador.agachado && jugador.y === SUELO_Y) { dH.y = jugador.y + 35; dH.h = jugador.alto - 35; }
 
-    // Físicas Cajas (Airdrops)
     for (let i = cajas.length - 1; i >= 0; i--) {
         let c = cajas[i];
-        if (c.y < SUELO_Y + 20) c.y += c.velY; // Cae hasta el suelo
+        if (c.y < SUELO_Y + 20) c.y += c.velY; 
         
-        // Colisión Jugador vs Caja
         if (dH.x < c.x + 24 && dH.x + dH.w > c.x && dH.y < c.y + 24 && dH.h + dH.y > c.y) {
             if (c.tipo === 'vida') jugador.vidas++;
-            else jugador.armaTimer = 400; // Unos 10 segundos de ráfaga
+            else jugador.armaTimer = 400; 
             
             explosiones.push({ x: c.x, y: c.y, timer: 10, color: '#00ff00' });
             cajas.splice(i, 1);
         }
     }
 
-    // Balas Jugador vs Jefe
     for (let i = balas.length - 1; i >= 0; i--) {
         balas[i].x += 14 * balas[i].dir; 
         let b = balas[i];
@@ -384,11 +362,11 @@ codigo_juego = """
             if (haceDano) {
                 explosiones.push({ x: b.x, y: b.y - 10, timer: 5, color: '#ffff00' });
                 jefe.hp--;
-                puntuacion += 10; // +10 Puntos por impacto
+                puntuacion += 10; 
                 chequearCaja();
                 
                 if (jefe.hp <= 0) {
-                    puntuacion += 50; // +50 Puntos por derrotar al jefe
+                    puntuacion += 50; 
                     chequearCaja();
                     explosiones.push({ x: jefe.x, y: jefe.y, timer: 30, color: '#ff4500' });
                     explosiones.push({ x: jefe.x+40, y: jefe.y+20, timer: 35, color: '#ff4500' });
@@ -401,35 +379,30 @@ codigo_juego = """
             balas.splice(i, 1); continue;
         }
         
-        // Penalización por fallar balas (-1 Punto)
         if (b.x < -20 || b.x > canvas.width + 20) {
             puntuacion -= 1; 
             balas.splice(i, 1);
         }
     }
 
-    // Físicas Balas Enemigas vs Jugador (Gravedad y Rebotes)
     for (let i = balasEnemigas.length - 1; i >= 0; i--) {
         let be = balasEnemigas[i];
         
         if (be.tipo === 'obus') {
             be.x += be.velX; be.y += be.velY;
         } else if (be.tipo.startsWith('bomba')) {
-            be.velY += 0.3; // Gravedad
+            be.velY += 0.3; 
             be.x += be.velX; be.y += be.velY;
             
-            // Lógica de rebote en el suelo
             if (be.y >= SUELO_Y + 20) {
                 be.y = SUELO_Y + 20;
-                be.velY = -be.velY * 0.7; // Absorción de impacto
+                be.velY = -be.velY * 0.7; 
                 be.rebotes++;
                 
-                // Fantasma: rebota una vez y a la segunda se elimina
                 if (be.tipo === 'bomba_fantasma' && be.rebotes >= 2) {
                     explosiones.push({ x: be.x, y: be.y, timer: 5, color: '#555' });
                     balasEnemigas.splice(i, 1); continue;
                 }
-                // Coloso: rebota infinitamente hasta salir de pantalla (no hacemos break aquí)
             }
         }
         
@@ -445,7 +418,11 @@ codigo_juego = """
     }
 
     dibujar();
-    if (estadoJuego === 'JUGANDO') requestAnimationFrame(bucle);
+    
+    // CORRECCIÓN DEL BUG: Permite que el bucle siga vivo durante la transición a otro nivel
+    if (estadoJuego === 'JUGANDO' || estadoJuego === 'TRANSICION') {
+        requestAnimationFrame(bucle); 
+    }
   }
 
   dibujar();
