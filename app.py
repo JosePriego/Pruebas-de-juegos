@@ -1,5 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import base64
+import os
 
 st.set_page_config(page_title="Run & Gun Realista", layout="centered", page_icon="🪖")
 
@@ -14,6 +16,22 @@ st.markdown("""
 st.title("🪖 RUN & GUN: REALISMO TOTAL")
 st.write("ESPACIO = Saltar | ABAJO = Cubrirse | TECLA X = ¡Disparar!")
 
+# --- LA MAGIA DE PYTHON ---
+# Esta función busca la imagen en tu carpeta de GitHub, la lee y la convierte a un formato que HTML entiende al instante.
+def cargar_imagen_local(nombre_archivo):
+    if os.path.exists(nombre_archivo):
+        with open(nombre_archivo, "rb") as f:
+            data = f.read()
+            # Convertimos la imagen a texto (Base64) para inyectarla directamente
+            return "data:image/png;base64," + base64.b64encode(data).decode()
+    return "" # Si no encuentra la imagen, devuelve vacío
+
+# Leemos tus tres imágenes exactas (deben llamarse así en GitHub)
+codigo_soldado = cargar_imagen_local("soldado.png")
+codigo_tanque = cargar_imagen_local("tanque.png")
+codigo_heli = cargar_imagen_local("helicoptero.png")
+
+# --- MOTOR DEL JUEGO WEB ---
 codigo_juego = """
 <!DOCTYPE html>
 <html>
@@ -29,20 +47,23 @@ codigo_juego = """
   const canvas = document.getElementById("juego");
   const ctx = canvas.getContext("2d");
 
-  // --- ⚠️ PEGA TUS ENLACES RAW AQUÍ ⚠️ ---
-  const urlSoldado = "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/soldado.png"; 
-  const urlTanque = "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/tanque.png";
-  const urlHelicoptero = "Phttps://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/helicoptero.png";
+  // Recibimos las imágenes inyectadas desde Python
+  const imgSoldado = new Image(); 
+  let srcSol = "INYECTAR_SOLDADO";
+  if(srcSol.length > 50) imgSoldado.src = srcSol;
 
-  // --- CARGA DE IMÁGENES SEGURA ---
-  // crossOrigin = "anonymous" evita que el navegador bloquee el juego
-  const imgSoldado = new Image(); imgSoldado.crossOrigin = "anonymous"; imgSoldado.src = urlSoldado;
-  const imgTanque = new Image(); imgTanque.crossOrigin = "anonymous"; imgTanque.src = urlTanque;
-  const imgHeli = new Image(); imgHeli.crossOrigin = "anonymous"; imgHeli.src = urlHelicoptero;
+  const imgTanque = new Image(); 
+  let srcTan = "INYECTAR_TANQUE";
+  if(srcTan.length > 50) imgTanque.src = srcTan;
+
+  const imgHeli = new Image(); 
+  let srcHel = "INYECTAR_HELI";
+  if(srcHel.length > 50) imgHeli.src = srcHel;
 
   // --- VARIABLES ---
   const SUELO_Y = 170;
-  let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 50, alto: 60, agachado: false };
+  // He ajustado un poco el tamaño para que el helicóptero se vea imponente
+  let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 55, alto: 65, agachado: false };
   let obstaculo = { x: 600, y: SUELO_Y, ancho: 70, alto: 50, tipo: 'tanque' };
   
   let balas = []; 
@@ -53,14 +74,14 @@ codigo_juego = """
   let maxPuntuacion = 0;
   try { maxPuntuacion = localStorage.getItem("realHighScore") || 0; } catch(e) {}
   
-  let velocidadJuego = 6;
+  let velocidadJuego = 6.5; // Un pelín más rápido
   let estado = 'INICIO';
 
   // --- CONTROLES ---
   function saltar() {
     if (estado === 'INICIO') { estado = 'JUGANDO'; requestAnimationFrame(bucle); } 
     else if (estado === 'GAMEOVER') { reiniciar(); requestAnimationFrame(bucle); } 
-    else if (estado === 'JUGANDO' && jugador.y === SUELO_Y && !jugador.agachado) { jugador.velY = -16; }
+    else if (estado === 'JUGANDO' && jugador.y === SUELO_Y && !jugador.agachado) { jugador.velY = -16.5; }
   }
 
   canvas.addEventListener("keydown", (e) => { 
@@ -68,8 +89,8 @@ codigo_juego = """
       if(e.code === "ArrowDown" && estado === 'JUGANDO') { e.preventDefault(); jugador.agachado = true; }
       if((e.code === "KeyX" || e.key === "x") && estado === 'JUGANDO') {
           if (balas.length < 3) {
-              let alturaFuego = jugador.agachado ? jugador.y + 30 : jugador.y + 20;
-              balas.push({ x: jugador.x + 40, y: alturaFuego, w: 15, h: 4 });
+              let alturaFuego = jugador.agachado ? jugador.y + 35 : jugador.y + 25;
+              balas.push({ x: jugador.x + 45, y: alturaFuego, w: 12, h: 4 });
           }
       }
   });
@@ -83,14 +104,15 @@ codigo_juego = """
     jugador.y = SUELO_Y; jugador.velY = 0; jugador.agachado = false;
     obstaculo.x = 600; obstaculo.tipo = 'tanque'; obstaculo.y = SUELO_Y;
     balas = []; explosion.activa = false;
-    puntuacion = 0; velocidadJuego = 6; estado = 'JUGANDO';
+    puntuacion = 0; velocidadJuego = 6.5; estado = 'JUGANDO';
   }
 
   function generarObstaculo() {
       obstaculo.x = canvas.width + 50 + Math.random() * 200;
       if (Math.random() < 0.5) {
           obstaculo.tipo = 'helicoptero';
-          obstaculo.y = SUELO_Y - 40; obstaculo.ancho = 80; obstaculo.alto = 40;
+          // El helicóptero vuela alto
+          obstaculo.y = SUELO_Y - 45; obstaculo.ancho = 90; obstaculo.alto = 45;
       } else {
           obstaculo.tipo = 'tanque';
           obstaculo.y = SUELO_Y; obstaculo.ancho = 70; obstaculo.alto = 50;
@@ -101,46 +123,43 @@ codigo_juego = """
   function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Suelo realista (Carretera/Asfalto)
-    ctx.fillStyle = "#555"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, canvas.height);
-    ctx.fillStyle = "#333"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, 10);
+    // Suelo realista (Asfalto)
+    ctx.fillStyle = "#4a4a4a"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, canvas.height);
+    ctx.fillStyle = "#222"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, 10);
 
     ctx.fillStyle = "#111"; ctx.font = "bold 16px 'Courier New'"; ctx.textAlign = "right";
     ctx.fillText("RÉCORD: " + Math.floor(maxPuntuacion).toString().padStart(5, '0') + "  BAJAS: " + Math.floor(puntuacion).toString().padStart(5, '0'), canvas.width - 20, 20);
     ctx.textAlign = "left";
 
-    // Dibujar Enemigos (Si la URL falla o está vacía, dibuja un recuadro negro por seguridad)
+    // Dibujar Enemigos
     if (obstaculo.tipo === 'tanque') {
-        if(imgTanque.complete && imgTanque.naturalHeight !== 0 && urlTanque !== "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/tanque.png") {
+        if(imgTanque.complete && imgTanque.naturalHeight !== 0) {
             ctx.drawImage(imgTanque, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
-        } else {
-            ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
-        }
+        } else { ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto); }
     } else {
-        if(imgHeli.complete && imgHeli.naturalHeight !== 0 && urlHelicoptero !== "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/helicoptero.png") {
+        if(imgHeli.complete && imgHeli.naturalHeight !== 0) {
             ctx.drawImage(imgHeli, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
-        } else {
-            ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
-        }
+        } else { ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto); }
     }
 
-    // Balas y explosión simple
-    balas.forEach(b => { ctx.fillStyle = '#ffcc00'; ctx.fillRect(b.x, b.y, b.w, b.h); });
+    // Balas y explosión
+    balas.forEach(b => { ctx.fillStyle = '#ffaa00'; ctx.fillRect(b.x, b.y, b.w, b.h); });
     if (explosion.activa) {
-        ctx.fillStyle = '#ff4500'; ctx.beginPath(); ctx.arc(explosion.x + 30, explosion.y + 20, 30, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ff4500'; ctx.beginPath(); ctx.arc(explosion.x + 35, explosion.y + 25, 30, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ffa500'; ctx.beginPath(); ctx.arc(explosion.x + 35, explosion.y + 25, 15, 0, Math.PI*2); ctx.fill();
     }
 
     // Dibujar Jugador
     if (estado === 'GAMEOVER') {
         ctx.fillStyle = 'red'; ctx.fillRect(jugador.x, jugador.y + 30, jugador.ancho, jugador.alto - 30);
-    } else if (imgSoldado.complete && imgSoldado.naturalHeight !== 0 && urlSoldado !== "https://raw.githubusercontent.com/JosePriego/Pruebas-de-juegos/main/soldado.png") {
+    } else if (imgSoldado.complete && imgSoldado.naturalHeight !== 0) {
         if (jugador.agachado && jugador.y === SUELO_Y) {
+            // Aplasta la imagen visualmente al agacharse
             ctx.drawImage(imgSoldado, jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25);
         } else {
             ctx.drawImage(imgSoldado, jugador.x, jugador.y, jugador.ancho, jugador.alto);
         }
     } else {
-        // Fallback: Si no hay imagen, dibuja un rectángulo azul
         ctx.fillStyle = 'blue'; 
         if (jugador.agachado && jugador.y === SUELO_Y) { ctx.fillRect(jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25); } 
         else { ctx.fillRect(jugador.x, jugador.y, jugador.ancho, jugador.alto); }
@@ -148,14 +167,14 @@ codigo_juego = """
 
     // Menús
     if (estado === 'INICIO') {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0,0,canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 24px 'Courier New'";
         ctx.fillText("CLIC PARA EMPEZAR", canvas.width/2, canvas.height/2 - 10);
     }
     if (estado === 'GAMEOVER') {
-        ctx.fillStyle = "rgba(150, 0, 0, 0.8)"; ctx.fillRect(0,0,canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(180, 0, 0, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 36px 'Courier New'";
-        ctx.fillText("ELIMINADO", canvas.width/2, canvas.height/2 - 25);
+        ctx.fillText("E L I M I N A D O", canvas.width/2, canvas.height/2 - 25);
         ctx.font = "bold 18px 'Courier New'"; ctx.fillText("Haz clic para intentar de nuevo", canvas.width/2, canvas.height/2 + 20);
     }
   }
@@ -173,11 +192,11 @@ codigo_juego = """
 
     puntuacion += 0.1; velocidadJuego += 0.002; 
 
-    // Hitbox adaptada a las nuevas proporciones
+    // Hitbox del obstáculo
     let cH = { x: obstaculo.x + 10, y: obstaculo.y + 10, w: obstaculo.ancho - 20, h: obstaculo.alto - 20 };
 
     for (let i = balas.length - 1; i >= 0; i--) {
-        balas[i].x += 14; 
+        balas[i].x += 15; 
         let b = balas[i];
         let bH = { x: b.x, y: b.y, w: b.w, h: b.h };
 
@@ -190,6 +209,7 @@ codigo_juego = """
 
     if (explosion.activa) { explosion.x -= velocidadJuego; explosion.timer--; if (explosion.timer <= 0) explosion.activa = false; }
 
+    // Hitbox del jugador
     let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
     if (jugador.agachado && jugador.y === SUELO_Y) { dH.y = jugador.y + 30; dH.h = jugador.alto - 30; }
 
@@ -205,12 +225,17 @@ codigo_juego = """
     if (estado === 'JUGANDO') { requestAnimationFrame(bucle); }
   }
 
-  // Render inicial seguro
-  setTimeout(dibujar, 300);
+  // Dibuja la pantalla inicial al cargar
+  dibujar();
 
 </script>
 </body>
 </html>
 """
+
+# Reemplazamos los textos clave en el HTML por el código real de las imágenes
+codigo_juego = codigo_juego.replace("INYECTAR_SOLDADO", codigo_soldado)
+codigo_juego = codigo_juego.replace("INYECTAR_TANQUE", codigo_tanque)
+codigo_juego = codigo_juego.replace("INYECTAR_HELI", codigo_heli)
 
 components.html(codigo_juego, height=280)
