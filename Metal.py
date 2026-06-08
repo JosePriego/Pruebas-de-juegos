@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import base64
 import os
 
-st.set_page_config(page_title="Metal Slug Demo", layout="centered", page_icon="💥")
+st.set_page_config(page_title="Metal Slug Arena", layout="centered", page_icon="💥")
 
 st.markdown("""
 <style>
@@ -13,10 +13,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("💥 OPERACIÓN: METAL PIXEL")
-st.write("ESPACIO = Saltar | ABAJO = Cubrirse | TECLA X = Disparar")
+st.title("💥 OPERACIÓN: ARENA TOTAL")
+st.write("**A / D** = Moverse | **W / ESPACIO** = Saltar | **S** = Cubrirse | **X** = Disparar")
 
-# --- LA MAGIA DE PYTHON (INYECCIÓN DE IMÁGENES) ---
+# --- LA MAGIA DE PYTHON ---
 def cargar_imagen_local(nombre_archivo):
     if os.path.exists(nombre_archivo):
         with open(nombre_archivo, "rb") as f:
@@ -49,82 +49,103 @@ codigo_juego = """
   const imgTanque = new Image(); let srcTan = "INYECTAR_TANQUE"; if(srcTan.length > 50) imgTanque.src = srcTan;
   const imgHeli = new Image(); let srcHel = "INYECTAR_HELI"; if(srcHel.length > 50) imgHeli.src = srcHel;
 
-  // --- VARIABLES ---
+  // --- VARIABLES DE ARENA ---
   const SUELO_Y = 170;
   
-  // Jugador ahora tiene Vidas e Invulnerabilidad temporal
-  let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 55, alto: 65, agachado: false, vidas: 3, invencible: 0 };
-  let obstaculo = { x: 600, y: SUELO_Y, ancho: 70, alto: 50, tipo: 'tanque' };
+  // direccion: 1 es derecha, -1 es izquierda
+  let jugador = { x: 270, y: SUELO_Y, velY: 0, ancho: 55, alto: 65, agachado: false, vidas: 3, invencible: 0, direccion: 1 };
+  
+  // Ahora manejamos listas de enemigos en lugar de solo uno
+  let enemigos = [];
+  let timerEnemigos = 0;
   
   let balas = []; 
-  let balasEnemigas = []; // ¡Los enemigos disparan!
-  let explosiones = []; // Múltiples explosiones a la vez
-  
-  let fondoEdificios = 0; // Para el efecto Parallax
+  let balasEnemigas = []; 
+  let explosiones = []; 
+  let fondoNubes = 0;
   
   let gravedad = 1.3;
   let puntuacion = 0;
   let maxPuntuacion = 0;
-  try { maxPuntuacion = localStorage.getItem("metalHighScore") || 0; } catch(e) {}
+  try { maxPuntuacion = localStorage.getItem("arenaHighScore") || 0; } catch(e) {}
   
-  let velocidadJuego = 6; 
   let estado = 'INICIO';
 
-  // --- CONTROLES ---
-  function saltar() {
-    if (estado === 'INICIO') { estado = 'JUGANDO'; requestAnimationFrame(bucle); } 
-    else if (estado === 'GAMEOVER') { reiniciar(); requestAnimationFrame(bucle); } 
-    else if (estado === 'JUGANDO' && jugador.y === SUELO_Y && !jugador.agachado) { jugador.velY = -16.5; }
-  }
-
-  canvas.addEventListener("keydown", (e) => { 
-      if(e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); saltar(); }
-      if(e.code === "ArrowDown" && estado === 'JUGANDO') { e.preventDefault(); jugador.agachado = true; }
-      if((e.code === "KeyX" || e.key === "x") && estado === 'JUGANDO') {
-          // Cadencia de fuego más alta
+  // --- CONTROLES DE MOVIMIENTO CONTINUO ---
+  const teclas = {};
+  
+  window.addEventListener('keydown', (e) => {
+      teclas[e.code] = true;
+      
+      // Saltar
+      if ((e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW")) {
+          e.preventDefault();
+          if (estado === 'INICIO') { estado = 'JUGANDO'; requestAnimationFrame(bucle); } 
+          else if (estado === 'GAMEOVER') { reiniciar(); requestAnimationFrame(bucle); } 
+          else if (estado === 'JUGANDO' && jugador.y === SUELO_Y && !jugador.agachado) { jugador.velY = -16.5; }
+      }
+      
+      // Disparar
+      if ((e.code === "KeyX" || e.key === "x") && estado === 'JUGANDO') {
           if (balas.length < 5) {
               let alturaFuego = jugador.agachado ? jugador.y + 35 : jugador.y + 25;
-              balas.push({ x: jugador.x + 45, y: alturaFuego, w: 12, h: 4 });
+              let posX = jugador.direccion === 1 ? jugador.x + 45 : jugador.x - 5;
+              balas.push({ x: posX, y: alturaFuego, w: 12, h: 4, dir: jugador.direccion });
           }
       }
   });
-  canvas.addEventListener("keyup", (e) => { if(e.code === "ArrowDown") { jugador.agachado = false; } });
-  canvas.addEventListener("mousedown", saltar);
-  canvas.addEventListener("touchstart", (e) => { e.preventDefault(); saltar(); }, {passive: false});
+
+  window.addEventListener('keyup', (e) => { teclas[e.code] = false; });
   canvas.focus();
 
   function reiniciar() {
-    jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 55, alto: 65, agachado: false, vidas: 3, invencible: 0 };
-    obstaculo.x = 800; obstaculo.tipo = 'tanque'; obstaculo.y = SUELO_Y;
-    balas = []; balasEnemigas = []; explosiones = [];
-    puntuacion = 0; velocidadJuego = 6; estado = 'JUGANDO';
+    jugador = { x: 270, y: SUELO_Y, velY: 0, ancho: 55, alto: 65, agachado: false, vidas: 3, invencible: 0, direccion: 1 };
+    enemigos = []; balas = []; balasEnemigas = []; explosiones = [];
+    puntuacion = 0; estado = 'JUGANDO';
   }
 
-  function generarObstaculo() {
-      obstaculo.x = canvas.width + 100 + Math.random() * 200;
-      if (Math.random() < 0.5) {
-          obstaculo.tipo = 'helicoptero';
-          obstaculo.y = SUELO_Y - 40; 
-          obstaculo.ancho = 90; obstaculo.alto = 45;
-      } else {
-          obstaculo.tipo = 'tanque';
-          obstaculo.y = SUELO_Y; 
-          obstaculo.ancho = 70; obstaculo.alto = 50;
-      }
+  function generarEnemigo() {
+      let porDerecha = Math.random() < 0.5;
+      let esHeli = Math.random() < 0.4;
+      
+      enemigos.push({
+          x: porDerecha ? canvas.width + 50 : -90,
+          y: esHeli ? SUELO_Y - 40 : SUELO_Y,
+          ancho: esHeli ? 90 : 70,
+          alto: esHeli ? 45 : 50,
+          tipo: esHeli ? 'helicoptero' : 'tanque',
+          dirX: porDerecha ? -1 : 1, // -1 se mueve a la izq, 1 a la der
+          vida: esHeli ? 1 : 2 // Los tanques aguantan 2 tiros
+      });
   }
   
   function recibirDano() {
       if (jugador.invencible <= 0) {
           jugador.vidas--;
-          jugador.invencible = 60; // 60 frames (1 segundo) de invulnerabilidad
-          explosiones.push({x: jugador.x, y: jugador.y, timer: 15}); // Explosión en ti
+          jugador.invencible = 60; // 1 segundo invulnerable
+          explosiones.push({x: jugador.x, y: jugador.y, timer: 15});
           if (jugador.vidas <= 0) {
               estado = 'GAMEOVER';
               if (puntuacion > maxPuntuacion) {
                   maxPuntuacion = puntuacion;
-                  try { localStorage.setItem("metalHighScore", maxPuntuacion); } catch(e) {}
+                  try { localStorage.setItem("arenaHighScore", maxPuntuacion); } catch(e) {}
               }
           }
+      }
+  }
+
+  // Función mágica para dibujar imágenes invertidas
+  function dibujarEntidad(img, x, y, w, h, invertir) {
+      if (!img.complete || img.naturalHeight === 0) return; // Si no hay imagen, no dibuja
+      
+      if (invertir) {
+          ctx.save();
+          ctx.translate(x + w, y);
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, 0, 0, w, h);
+          ctx.restore();
+      } else {
+          ctx.drawImage(img, x, y, w, h);
       }
   }
 
@@ -132,87 +153,77 @@ codigo_juego = """
   function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Fondo Parallax (Edificios en ruinas)
+    // Fondo ambiental
     ctx.fillStyle = "#5c6b69";
+    fondoNubes += 0.5;
     for(let i=0; i<10; i++) {
-        let posX = ((i * 120) - fondoEdificios) % 720;
+        let posX = ((i * 120) - fondoNubes) % 720;
         if(posX < -120) posX += 720;
-        // Dibujamos rascacielos simples
         ctx.fillRect(posX, SUELO_Y - 80 + (i%3)*20, 60, 150);
         ctx.fillRect(posX+60, SUELO_Y - 50, 40, 100);
     }
 
-    // Suelo
     ctx.fillStyle = "#333"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, canvas.height);
     ctx.fillStyle = "#111"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, 10);
 
-    // UI: Puntos
     ctx.fillStyle = "#111"; ctx.font = "bold 16px 'Courier New'"; ctx.textAlign = "right";
     ctx.fillText("HI: " + Math.floor(maxPuntuacion).toString().padStart(5, '0') + "  PTS: " + Math.floor(puntuacion).toString().padStart(5, '0'), canvas.width - 10, 20);
     ctx.textAlign = "left";
 
-    // UI: Vidas (Corazones)
     ctx.fillStyle = "#d32f2f"; ctx.font = "20px Arial";
     let corazones = "";
     for(let v=0; v<jugador.vidas; v++) corazones += "❤️";
     ctx.fillText(corazones, 10, 15);
 
-    // Enemigo
-    if (obstaculo.tipo === 'tanque') {
-        if(imgTanque.complete && imgTanque.naturalHeight !== 0) ctx.drawImage(imgTanque, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
-        else { ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto); }
-    } else {
-        if(imgHeli.complete && imgHeli.naturalHeight !== 0) ctx.drawImage(imgHeli, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
-        else { ctx.fillStyle = 'black'; ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto); }
-    }
+    // Dibujar Enemigos
+    enemigos.forEach(ene => {
+        let invertido = ene.dirX === 1; // La imagen original mira a la izquierda, la invertimos si va a la derecha
+        if (ene.tipo === 'tanque') dibujarEntidad(imgTanque, ene.x, ene.y, ene.ancho, ene.alto, invertido);
+        else dibujarEntidad(imgHeli, ene.x, ene.y, ene.ancho, ene.alto, invertido);
+    });
 
-    // Proyectiles Jugador
     balas.forEach(b => { ctx.fillStyle = '#ffaa00'; ctx.fillRect(b.x, b.y, b.w, b.h); });
     
-    // Proyectiles Enemigos
     balasEnemigas.forEach(be => {
         if (be.tipo === 'obus') {
-            ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(be.x, be.y, 6, 0, Math.PI*2); ctx.fill(); // Obús rojo
+            ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(be.x, be.y, 6, 0, Math.PI*2); ctx.fill(); 
         } else {
-            ctx.fillStyle = '#333'; ctx.fillRect(be.x, be.y, 8, 12); // Bomba de helicóptero
+            ctx.fillStyle = '#333'; ctx.fillRect(be.x, be.y, 8, 12); 
         }
     });
 
-    // Explosiones
     explosiones.forEach(exp => {
         ctx.fillStyle = '#ff4500'; ctx.beginPath(); ctx.arc(exp.x + 20, exp.y + 20, 40, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = '#ffa500'; ctx.beginPath(); ctx.arc(exp.x + 20, exp.y + 20, 20, 0, Math.PI*2); ctx.fill();
     });
 
-    // Jugador (Parpadeo si es invencible)
+    // Dibujar Jugador
     if (estado !== 'GAMEOVER') {
         if (jugador.invencible === 0 || Math.floor(jugador.invencible / 4) % 2 === 0) {
-            if (imgSoldado.complete && imgSoldado.naturalHeight !== 0) {
-                if (jugador.agachado && jugador.y === SUELO_Y) ctx.drawImage(imgSoldado, jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25);
-                else ctx.drawImage(imgSoldado, jugador.x, jugador.y, jugador.ancho, jugador.alto);
+            let invertido = jugador.direccion === -1;
+            if (jugador.agachado && jugador.y === SUELO_Y) {
+                // Truco de aplastar imagen + rotación si aplica
+                if(invertido) { ctx.save(); ctx.translate(jugador.x + jugador.ancho, jugador.y + 25); ctx.scale(-1, 1); ctx.drawImage(imgSoldado, 0, 0, jugador.ancho, jugador.alto - 25); ctx.restore(); } 
+                else { ctx.drawImage(imgSoldado, jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25); }
             } else {
-                ctx.fillStyle = 'blue'; 
-                if (jugador.agachado && jugador.y === SUELO_Y) ctx.fillRect(jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25);
-                else ctx.fillRect(jugador.x, jugador.y, jugador.ancho, jugador.alto);
+                dibujarEntidad(imgSoldado, jugador.x, jugador.y, jugador.ancho, jugador.alto, invertido);
             }
         }
     } else {
-        // Tumba
         ctx.fillStyle = '#555'; ctx.fillRect(jugador.x+10, jugador.y+30, 20, 30);
         ctx.fillStyle = '#fff'; ctx.font = "20px Arial"; ctx.fillText("💀", jugador.x+8, jugador.y+40);
     }
 
-    // Menús
     if (estado === 'INICIO') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 24px 'Courier New'";
-        ctx.fillText("CLIC PARA INSERTAR MONEDA", canvas.width/2, canvas.height/2);
+        ctx.fillText("CLIC O ESPACIO PARA INICIAR", canvas.width/2, canvas.height/2);
     }
     if (estado === 'GAMEOVER') {
         ctx.fillStyle = "rgba(100, 0, 0, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 36px 'Courier New'";
         ctx.fillText("M I S I Ó N   F A L L I D A", canvas.width/2, canvas.height/2 - 25);
-        ctx.font = "bold 18px 'Courier New'"; ctx.fillText("Haz clic para continuar", canvas.width/2, canvas.height/2 + 20);
+        ctx.font = "bold 18px 'Courier New'"; ctx.fillText("Presiona ESPACIO para continuar", canvas.width/2, canvas.height/2 + 20);
     }
   }
 
@@ -222,69 +233,104 @@ codigo_juego = """
 
     if (jugador.invencible > 0) jugador.invencible--;
 
+    // Gestión de Controles de Movimiento Lateral
+    jugador.agachado = (teclas['ArrowDown'] || teclas['KeyS']) && jugador.y === SUELO_Y;
+    
+    if (!jugador.agachado) {
+        if (teclas['ArrowRight'] || teclas['KeyD']) { jugador.x += 5; jugador.direccion = 1; }
+        if (teclas['ArrowLeft'] || teclas['KeyA']) { jugador.x -= 5; jugador.direccion = -1; }
+    }
+    
+    // Limites de la pantalla para el jugador
+    if (jugador.x < 0) jugador.x = 0;
+    if (jugador.x > canvas.width - jugador.ancho) jugador.x = canvas.width - jugador.ancho;
+
     // Físicas salto
     if (!jugador.agachado || jugador.y < SUELO_Y) { jugador.velY += gravedad; jugador.y += jugador.velY; } 
     else { jugador.velY += gravedad * 2; jugador.y += jugador.velY; }
     if (jugador.y > SUELO_Y) { jugador.y = SUELO_Y; jugador.velY = 0; }
 
-    // Entorno
-    obstaculo.x -= velocidadJuego;
-    fondoEdificios += velocidadJuego * 0.3; // Parallax de fondo
-    if (obstaculo.x < -100) { generarObstaculo(); puntuacion += 5; } // Puntos por sobrevivir
+    puntuacion += 0.05; 
+    let velEnemigos = 4 + (puntuacion * 0.01);
 
-    puntuacion += 0.05; velocidadJuego += 0.001; 
-
-    // IA Enemiga: ¡Disparar!
-    if (obstaculo.x > 100 && obstaculo.x < 500) {
-        if (obstaculo.tipo === 'tanque' && Math.random() < 0.02) {
-            // El tanque dispara recto hacia ti
-            balasEnemigas.push({ x: obstaculo.x, y: obstaculo.y + 15, w: 12, h: 12, velX: -8, velY: 0, tipo: 'obus' });
-        } else if (obstaculo.tipo === 'helicoptero' && Math.random() < 0.03) {
-            // El helicóptero deja caer bombas en diagonal
-            balasEnemigas.push({ x: obstaculo.x + 40, y: obstaculo.y + 30, w: 8, h: 12, velX: -3, velY: 5, tipo: 'bomba' });
-        }
+    // Sistema de Oleadas (Spawns)
+    timerEnemigos++;
+    let limiteTimer = Math.max(50, 150 - puntuacion); // Cada vez salen más rápido
+    if (timerEnemigos >= limiteTimer) {
+        generarEnemigo();
+        timerEnemigos = 0;
     }
 
-    let cH = { x: obstaculo.x + 10, y: obstaculo.y + 10, w: obstaculo.ancho - 20, h: obstaculo.alto - 20 };
     let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
     if (jugador.agachado && jugador.y === SUELO_Y) { dH.y = jugador.y + 35; dH.h = jugador.alto - 35; }
 
-    // Choque cuerpo a cuerpo
-    if (dH.x < cH.x + cH.w && dH.x + dH.w > cH.x && dH.y < cH.y + cH.h && dH.h + dH.y > cH.y) {
-        recibirDano();
-    }
+    // Actualizar Enemigos
+    for(let i = enemigos.length - 1; i >= 0; i--) {
+        let ene = enemigos[i];
+        ene.x += velEnemigos * ene.dirX;
 
-    // Físicas Balas Jugador
-    for (let i = balas.length - 1; i >= 0; i--) {
-        balas[i].x += 16; 
-        let b = balas[i];
-        if (b.x < cH.x + cH.w && b.x + b.w > cH.x && b.y < cH.y + cH.h && b.h + b.y > cH.y) {
-            explosiones.push({ x: obstaculo.x, y: obstaculo.y, timer: 10 });
-            puntuacion += 20; generarObstaculo(); balas.splice(i, 1); continue;
+        // IA Disparo
+        if (ene.x > 50 && ene.x < canvas.width - 50) {
+            if (ene.tipo === 'tanque' && Math.random() < 0.015) {
+                let startX = ene.dirX === -1 ? ene.x : ene.x + ene.ancho;
+                balasEnemigas.push({ x: startX, y: ene.y + 15, w: 12, h: 12, velX: 8 * ene.dirX, velY: 0, tipo: 'obus' });
+            } else if (ene.tipo === 'helicoptero' && Math.random() < 0.02) {
+                balasEnemigas.push({ x: ene.x + 40, y: ene.y + 30, w: 8, h: 12, velX: 2 * ene.dirX, velY: 5, tipo: 'bomba' });
+            }
         }
-        if (b.x > canvas.width) balas.splice(i, 1);
+
+        // Colisión cuerpo a cuerpo
+        let cH = { x: ene.x + 10, y: ene.y + 10, w: ene.ancho - 20, h: ene.alto - 20 };
+        if (dH.x < cH.x + cH.w && dH.x + dH.w > cH.x && dH.y < cH.y + cH.h && dH.h + dH.y > cH.y) {
+            recibirDano();
+        }
+
+        // Limpiar si salen mucho de la pantalla
+        if (ene.x < -150 || ene.x > canvas.width + 150) enemigos.splice(i, 1);
     }
 
-    // Físicas Balas Enemigas
+    // Físicas Balas Jugador vs Enemigos
+    for (let i = balas.length - 1; i >= 0; i--) {
+        balas[i].x += 16 * balas[i].dir; 
+        let b = balas[i];
+        let hit = false;
+        
+        for (let j = enemigos.length - 1; j >= 0; j--) {
+            let ene = enemigos[j];
+            let cH = { x: ene.x + 10, y: ene.y + 10, w: ene.ancho - 20, h: ene.alto - 20 };
+            
+            if (b.x < cH.x + cH.w && b.x + b.w > cH.x && b.y < cH.y + cH.h && b.h + b.y > cH.y) {
+                explosiones.push({ x: ene.x, y: ene.y, timer: 10 });
+                ene.vida--;
+                if(ene.vida <= 0) {
+                    puntuacion += 20; 
+                    enemigos.splice(j, 1);
+                }
+                hit = true;
+                break; // La bala solo golpea a uno
+            }
+        }
+        
+        if (hit) { balas.splice(i, 1); continue; }
+        if (b.x < -20 || b.x > canvas.width + 20) balas.splice(i, 1);
+    }
+
+    // Físicas Balas Enemigas vs Jugador
     for (let i = balasEnemigas.length - 1; i >= 0; i--) {
         balasEnemigas[i].x += balasEnemigas[i].velX;
         balasEnemigas[i].y += balasEnemigas[i].velY;
         let be = balasEnemigas[i];
         
-        // Colisión Bala Enemiga vs Jugador
         if (be.x < dH.x + dH.w && be.x + be.w > dH.x && be.y < dH.y + dH.h && be.h + be.y > dH.y) {
             recibirDano();
             balasEnemigas.splice(i, 1);
             continue;
         }
         
-        // Borrar si tocan el suelo o salen de pantalla
-        if (be.x < -20 || be.y > SUELO_Y + 50) balasEnemigas.splice(i, 1);
+        if (be.x < -20 || be.x > canvas.width + 20 || be.y > SUELO_Y + 50) balasEnemigas.splice(i, 1);
     }
 
-    // Gestionar Explosiones
     for (let i = explosiones.length - 1; i >= 0; i--) {
-        explosiones[i].x -= velocidadJuego; 
         explosiones[i].timer--; 
         if (explosiones[i].timer <= 0) explosiones.splice(i, 1); 
     }
