@@ -13,7 +13,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🪖 RUN & GUN: REALISMO TOTAL")
+st.title("RUN & GUN: REALISMO TOTAL")
 st.write("ESPACIO = Saltar | ABAJO = Cubrirse | TECLA X = ¡Disparar!")
 
 # --- LA MAGIA DE PYTHON ---
