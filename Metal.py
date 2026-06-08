@@ -14,9 +14,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💀 BOSS RUSH: MODO LEYENDA")
-st.write("**A / D** = Moverse | **W / ESPACIO** = Saltar | **S** = Cubrirse | **X** = Disparar")
+st.write("**A / D** = Mover | **ESPACIO** = Saltar | **S** = Cubrirse | **X** = Disparar | **SHIFT** = Dash | **M** = Música")
 
-# --- LA MAGIA DE PYTHON ---
+# --- LA MAGIA DE PYTHON (INYECCIÓN DE IMÁGENES) ---
 def cargar_imagen_local(nombre_archivo):
     if os.path.exists(nombre_archivo):
         with open(nombre_archivo, "rb") as f:
@@ -48,8 +48,96 @@ codigo_juego = """
   const imgTanque = new Image(); let srcTan = "INYECTAR_TANQUE"; if(srcTan.length > 50) imgTanque.src = srcTan;
   const imgHeli = new Image(); let srcHel = "INYECTAR_HELI"; if(srcHel.length > 50) imgHeli.src = srcHel;
 
+  // --- MOTOR DE SONIDO DE 8-BITS ---
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  let audioCtx;
+  let musicaMuted = false;
+
+  function initAudio() {
+      if (!audioCtx) { audioCtx = new AudioContext(); }
+      if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+  }
+
+  function playSound(tipo) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+
+      if (tipo === 'shoot') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+          gainNode.gain.setValueAtTime(0.04, now);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          osc.start(now); osc.stop(now + 0.1);
+      } else if (tipo === 'hit') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(200, now);
+          gainNode.gain.setValueAtTime(0.05, now);
+          gainNode.gain.linearRampToValueAtTime(0.001, now + 0.1);
+          osc.start(now); osc.stop(now + 0.1);
+      } else if (tipo === 'explosion') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(100, now);
+          osc.frequency.exponentialRampToValueAtTime(10, now + 0.5);
+          gainNode.gain.setValueAtTime(0.15, now);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          osc.start(now); osc.stop(now + 0.5);
+      } else if (tipo === 'dash') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.linearRampToValueAtTime(800, now + 0.2);
+          gainNode.gain.setValueAtTime(0.05, now);
+          gainNode.gain.linearRampToValueAtTime(0.001, now + 0.2);
+          osc.start(now); osc.stop(now + 0.2);
+      } else if (tipo === 'caja') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(500, now);
+          osc.frequency.setValueAtTime(800, now + 0.1);
+          gainNode.gain.setValueAtTime(0.1, now);
+          gainNode.gain.linearRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now); osc.stop(now + 0.3);
+      }
+  }
+
+  // --- SINTETIZADOR DE MÚSICA DE FONDO ---
+  // Partitura: Un bajo intenso y repetitivo de acción (Frecuencias en Hz)
+  const melodia = [130.81, 130.81, 155.56, 130.81, 174.61, 185.00, 174.61, 155.56]; 
+  let notaActual = 0;
+  let idMusica = null;
+
+  function tocarNotaMusical() {
+      if (musicaMuted || !audioCtx) return;
+      if (estadoJuego !== 'JUGANDO' && estadoJuego !== 'TRANSICION') return; // Solo suena en partida
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.type = 'square'; // Sonido clásico de NES
+      osc.frequency.value = melodia[notaActual];
+
+      gain.gain.setValueAtTime(0.02, audioCtx.currentTime); // Volumen bajito para que no tape los disparos
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.15);
+
+      notaActual = (notaActual + 1) % melodia.length;
+  }
+
+  function arrancarMusica() {
+      if (idMusica) clearInterval(idMusica);
+      idMusica = setInterval(tocarNotaMusical, 200); // Toca una nota cada 200ms
+  }
+
+  // --- VARIABLES DEL JUEGO ---
   const SUELO_Y = 200;
-  let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 45, alto: 55, agachado: false, vidas: 5, invencible: 0, dir: 1, armaTimer: 0 };
+  let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 45, alto: 55, agachado: false, vidas: 5, invencible: 0, dir: 1, armaTimer: 0, dashTimer: 0, dashCooldown: 0 };
   let jefe = { x: 450, y: SUELO_Y, ancho: 80, alto: 60, tipo: 'tanque', hp: 10, maxHp: 10, timer: 0, estado: 0, escudo: false, visible: true };
   let nivel = 1;
   let nombresJefes = ["", "NIVEL 1: EL NOVATO", "NIVEL 2: EL CÓNDOR", "NIVEL 3: EL ESCUDO", "NIVEL 4: EL FANTASMA", "NIVEL 5: EL COLOSO"];
@@ -59,30 +147,37 @@ codigo_juego = """
   let estadoJuego = 'INICIO'; 
   let transicionTimer = 0;
   let cooldownDisparo = 0;
-  
   let puntuacion = 0;
   let siguienteCaja = 100;
   let modoDificil = false;
+
+  let shakeTimer = 0;
+  let shakeMag = 0;
+
+  function hacerTemblar(duracion, magnitud) {
+      shakeTimer = duracion; shakeMag = magnitud;
+  }
   
   const teclas = {};
   window.addEventListener('keydown', (e) => {
       teclas[e.code] = true;
+      
       if ((e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW")) {
           e.preventDefault();
-          if (estadoJuego === 'INICIO' || estadoJuego === 'GAMEOVER') { 
-              modoDificil = false; iniciarNivel(1); 
-          } 
-          else if (estadoJuego === 'VICTORIA') {
-              modoDificil = false; iniciarNivel(1);
+          initAudio(); 
+          if (estadoJuego === 'INICIO' || estadoJuego === 'GAMEOVER') { modoDificil = false; iniciarNivel(1); } 
+          else if (estadoJuego === 'VICTORIA') { modoDificil = false; iniciarNivel(1); }
+          else if (estadoJuego === 'JUGANDO' && jugador.y === SUELO_Y && !jugador.agachado && jugador.dashTimer <= 0) { 
+              jugador.velY = -15; 
           }
-          else if (estadoJuego === 'JUGANDO' && jugador.y === SUELO_Y && !jugador.agachado) { jugador.velY = -15; }
       }
       
-      if (e.code === "KeyH" && estadoJuego === 'VICTORIA') {
-          modoDificil = true; iniciarNivel(1);
-      }
+      if (e.code === "KeyH" && estadoJuego === 'VICTORIA') { modoDificil = true; iniciarNivel(1); }
 
-      if ((e.code === "KeyX" || e.key === "x") && estadoJuego === 'JUGANDO') {
+      // Alternar Música con la M
+      if (e.code === "KeyM" || e.key === "m") { musicaMuted = !musicaMuted; }
+
+      if ((e.code === "KeyX" || e.key === "x") && estadoJuego === 'JUGANDO' && jugador.dashTimer <= 0) {
           if (cooldownDisparo <= 0) {
               let limite = jugador.armaTimer > 0 ? 8 : 4; 
               if (balas.length < limite) {
@@ -90,26 +185,37 @@ codigo_juego = """
                   let posX = jugador.dir === 1 ? jugador.x + 40 : jugador.x - 10;
                   balas.push({ x: posX, y: alturaFuego, w: 15, h: 4, dir: jugador.dir });
                   cooldownDisparo = jugador.armaTimer > 0 ? 5 : 15; 
+                  playSound('shoot'); 
               }
+          }
+      }
+
+      if ((e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC" || e.key === "c") && estadoJuego === 'JUGANDO') {
+          if (jugador.dashCooldown <= 0 && jugador.dashTimer <= 0) {
+              jugador.dashTimer = 12; 
+              jugador.dashCooldown = 60; 
+              jugador.invencible = 12; 
+              jugador.agachado = false; 
+              playSound('dash'); 
           }
       }
   });
   window.addEventListener('keyup', (e) => { teclas[e.code] = false; });
+  canvas.addEventListener('mousedown', () => { initAudio(); });
   canvas.focus();
 
   function iniciarNivel(n) {
       nivel = n;
-      jugador.x = 50; jugador.y = SUELO_Y; jugador.velY = 0; jugador.dir = 1;
+      jugador.x = 50; jugador.y = SUELO_Y; jugador.velY = 0; jugador.dir = 1; jugador.dashTimer = 0; jugador.dashCooldown = 0;
       
       if(n === 1) {
           jugador.vidas = modoDificil ? 3 : 5; 
-          puntuacion = 0;
-          siguienteCaja = 100;
-          jugador.armaTimer = 0;
+          puntuacion = 0; siguienteCaja = 100; jugador.armaTimer = 0;
+          arrancarMusica(); // Encender motor de música
       }
       
       balas = []; balasEnemigas = []; explosiones = []; cajas = [];
-      jefe.timer = 0; jefe.escudo = false; jefe.visible = true;
+      jefe.timer = 0; jefe.escudo = false; jefe.visible = true; shakeTimer = 0;
       
       let mult = modoDificil ? 1.5 : 1; 
       
@@ -121,8 +227,6 @@ codigo_juego = """
       
       jefe.hp = jefe.maxHp;
       estadoJuego = 'TRANSICION'; transicionTimer = 150;
-      
-      // SOLO arrancamos el bucle si viene de estar apagado (Nivel 1)
       if (n === 1) requestAnimationFrame(bucle); 
   }
 
@@ -131,6 +235,8 @@ codigo_juego = """
           jugador.vidas--;
           puntuacion -= 25; 
           jugador.invencible = 60; 
+          hacerTemblar(15, 12); 
+          playSound('explosion'); 
           explosiones.push({x: jugador.x, y: jugador.y, timer: 15, color: '#ff0000'});
           if (jugador.vidas <= 0) estadoJuego = 'GAMEOVER';
       }
@@ -138,10 +244,7 @@ codigo_juego = """
 
   function chequearCaja() {
       if (!modoDificil && puntuacion >= siguienteCaja) {
-          cajas.push({ 
-              x: Math.random() * 300 + 100, y: -30, velY: 3, 
-              tipo: Math.random() < 0.5 ? 'vida' : 'arma' 
-          });
+          cajas.push({ x: Math.random() * 300 + 100, y: -30, velY: 3, tipo: Math.random() < 0.5 ? 'vida' : 'arma' });
           siguienteCaja += 100;
       }
   }
@@ -184,9 +287,7 @@ codigo_juego = """
       }
       else if (nivel === 4) { 
           let t = jefe.timer % Math.floor(150 * velDisp);
-          if (t === 0) {
-              jefe.x = Math.random() * 300 + 200; jefe.y = Math.random() * 100 + 40; jefe.visible = true;
-          }
+          if (t === 0) { jefe.x = Math.random() * 300 + 200; jefe.y = Math.random() * 100 + 40; jefe.visible = true; }
           if (t === Math.floor(60 * velDisp)) {
               dispararJefe(jefe.x + 20, jefe.y + 30, -3, 0, 'bomba_fantasma');
               dispararJefe(jefe.x + 20, jefe.y + 30, -1, 0, 'bomba_fantasma');
@@ -195,10 +296,11 @@ codigo_juego = """
       }
       else if (nivel === 5) { 
           jefe.x += Math.sin(jefe.timer * 0.02) * 0.5;
-          if (jefe.timer % Math.floor(60 * velDisp) === 0) dispararJefe(jefe.x, jefe.y + 70, -6, 0, 'obus');
-          if (jefe.timer % Math.floor(90 * velDisp) === 0) {
-              dispararJefe(jefe.x + 30, jefe.y + 20, -4, 0, 'bomba_coloso'); 
+          if (jefe.timer % Math.floor(60 * velDisp) === 0) {
+              dispararJefe(jefe.x, jefe.y + 70, -6, 0, 'obus');
+              hacerTemblar(4, 3); 
           }
+          if (jefe.timer % Math.floor(90 * velDisp) === 0) { dispararJefe(jefe.x + 30, jefe.y + 20, -4, 0, 'bomba_coloso'); }
       }
   }
 
@@ -210,6 +312,13 @@ codigo_juego = """
 
   function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.save();
+    if (shakeTimer > 0) {
+        let dx = (Math.random() - 0.5) * shakeMag;
+        let dy = (Math.random() - 0.5) * shakeMag;
+        ctx.translate(dx, dy);
+    }
 
     ctx.fillStyle = modoDificil ? "#3a2a2a" : "#4a5a6a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#222"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, canvas.height);
@@ -224,9 +333,14 @@ codigo_juego = """
     ctx.textAlign = "left";
 
     if (jugador.armaTimer > 0) {
-        ctx.fillStyle = "#ffff00"; ctx.font = "bold 14px 'Courier New'";
-        ctx.fillText("⚡ RÁFAGA ACTIVA", 10, 45);
+        ctx.fillStyle = "#ffff00"; ctx.font = "bold 14px 'Courier New'"; ctx.fillText("⚡ RÁFAGA ACTIVA", 10, 45);
+    } else if (jugador.dashCooldown <= 0) {
+        ctx.fillStyle = "#00ffff"; ctx.font = "bold 14px 'Courier New'"; ctx.fillText("💨 DASH LISTO", 10, 45);
     }
+
+    // Icono de Música
+    ctx.fillStyle = musicaMuted ? "#888" : "#fff"; ctx.font = "14px 'Courier New'"; ctx.textAlign = "right";
+    ctx.fillText(musicaMuted ? "🔇 MÚSICA OFF" : "🔊 MÚSICA ON", canvas.width - 10, 45); ctx.textAlign = "left";
 
     if (modoDificil) {
         ctx.fillStyle = "#ff4500"; ctx.font = "bold 14px 'Courier New'"; ctx.textAlign = "center";
@@ -269,8 +383,16 @@ codigo_juego = """
     });
 
     if (estadoJuego !== 'GAMEOVER') {
-        if (jugador.invencible === 0 || Math.floor(jugador.invencible / 4) % 2 === 0) {
-            let invertido = jugador.dir === -1;
+        let invertido = jugador.dir === -1;
+        if (jugador.dashTimer > 0) {
+            ctx.globalAlpha = 0.4;
+            let offset = 20 * jugador.dir;
+            dibujarEntidad(imgSoldado, jugador.x - offset, jugador.y, jugador.ancho, jugador.alto, invertido);
+            dibujarEntidad(imgSoldado, jugador.x - offset*2, jugador.y, jugador.ancho, jugador.alto, invertido);
+            ctx.globalAlpha = 1.0;
+        }
+
+        if (jugador.invencible === 0 || jugador.dashTimer > 0 || Math.floor(jugador.invencible / 4) % 2 === 0) {
             if (jugador.agachado && jugador.y === SUELO_Y) {
                 if(invertido) { ctx.save(); ctx.translate(jugador.x + jugador.ancho, jugador.y + 25); ctx.scale(-1, 1); ctx.drawImage(imgSoldado, 0, 0, jugador.ancho, jugador.alto - 25); ctx.restore(); } 
                 else if (imgSoldado.complete && imgSoldado.naturalHeight !== 0) ctx.drawImage(imgSoldado, jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25);
@@ -281,10 +403,12 @@ codigo_juego = """
         ctx.fillStyle = '#fff'; ctx.font = "20px Arial"; ctx.fillText("💀", jugador.x+8, jugador.y+40);
     }
 
+    ctx.restore();
+
     if (estadoJuego === 'INICIO') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 24px 'Courier New'";
-        ctx.fillText("CLIC O ESPACIO PARA INICIAR", canvas.width/2, canvas.height/2);
+        ctx.fillText("CLIC PARA ACTIVAR AUDIO Y EMPEZAR", canvas.width/2, canvas.height/2);
     } else if (estadoJuego === 'TRANSICION') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 32px 'Courier New'";
@@ -318,12 +442,20 @@ codigo_juego = """
     if (jugador.invencible > 0) jugador.invencible--;
     if (cooldownDisparo > 0) cooldownDisparo--;
     if (jugador.armaTimer > 0) jugador.armaTimer--;
+    if (jugador.dashCooldown > 0) jugador.dashCooldown--;
+    if (shakeTimer > 0) shakeTimer--; 
 
-    jugador.agachado = (teclas['ArrowDown'] || teclas['KeyS']) && jugador.y === SUELO_Y;
-    if (!jugador.agachado) {
-        if (teclas['ArrowRight'] || teclas['KeyD']) { jugador.x += 4; jugador.dir = 1; }
-        if (teclas['ArrowLeft'] || teclas['KeyA']) { jugador.x -= 4; jugador.dir = -1; }
+    if (jugador.dashTimer > 0) {
+        jugador.dashTimer--;
+        jugador.x += 12 * jugador.dir; 
+    } else {
+        jugador.agachado = (teclas['ArrowDown'] || teclas['KeyS']) && jugador.y === SUELO_Y;
+        if (!jugador.agachado) {
+            if (teclas['ArrowRight'] || teclas['KeyD']) { jugador.x += 4; jugador.dir = 1; }
+            if (teclas['ArrowLeft'] || teclas['KeyA']) { jugador.x -= 4; jugador.dir = -1; }
+        }
     }
+
     if (jugador.x < 0) jugador.x = 0;
     if (jugador.x > canvas.width - jugador.ancho) jugador.x = canvas.width - jugador.ancho;
 
@@ -345,6 +477,7 @@ codigo_juego = """
             if (c.tipo === 'vida') jugador.vidas++;
             else jugador.armaTimer = 400; 
             
+            playSound('caja'); 
             explosiones.push({ x: c.x, y: c.y, timer: 10, color: '#00ff00' });
             cajas.splice(i, 1);
         }
@@ -360,6 +493,7 @@ codigo_juego = """
             if (nivel === 3 && jefe.escudo && b.x < jefe.x) haceDano = false; 
             
             if (haceDano) {
+                playSound('hit'); 
                 explosiones.push({ x: b.x, y: b.y - 10, timer: 5, color: '#ffff00' });
                 jefe.hp--;
                 puntuacion += 10; 
@@ -368,6 +502,8 @@ codigo_juego = """
                 if (jefe.hp <= 0) {
                     puntuacion += 50; 
                     chequearCaja();
+                    playSound('explosion'); 
+                    hacerTemblar(30, 15); 
                     explosiones.push({ x: jefe.x, y: jefe.y, timer: 30, color: '#ff4500' });
                     explosiones.push({ x: jefe.x+40, y: jefe.y+20, timer: 35, color: '#ff4500' });
                     if (nivel < 5) {
@@ -418,8 +554,6 @@ codigo_juego = """
     }
 
     dibujar();
-    
-    // CORRECCIÓN DEL BUG: Permite que el bucle siga vivo durante la transición a otro nivel
     if (estadoJuego === 'JUGANDO' || estadoJuego === 'TRANSICION') {
         requestAnimationFrame(bucle); 
     }
