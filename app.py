@@ -17,16 +17,15 @@ st.title("🪖 RUN & GUN: REALISMO TOTAL")
 st.write("ESPACIO = Saltar | ABAJO = Cubrirse | TECLA X = ¡Disparar!")
 
 # --- LA MAGIA DE PYTHON ---
-# Esta función busca la imagen en tu carpeta de GitHub, la lee y la convierte a un formato que HTML entiende al instante.
+# Esta función busca la imagen en tu carpeta de GitHub, la lee y la inyecta
 def cargar_imagen_local(nombre_archivo):
     if os.path.exists(nombre_archivo):
         with open(nombre_archivo, "rb") as f:
             data = f.read()
-            # Convertimos la imagen a texto (Base64) para inyectarla directamente
             return "data:image/png;base64," + base64.b64encode(data).decode()
-    return "" # Si no encuentra la imagen, devuelve vacío
+    return "" 
 
-# Leemos tus tres imágenes exactas (deben llamarse así en GitHub)
+# Tienen que llamarse exactamente así en tu GitHub
 codigo_soldado = cargar_imagen_local("soldado.png")
 codigo_tanque = cargar_imagen_local("tanque.png")
 codigo_heli = cargar_imagen_local("helicoptero.png")
@@ -47,7 +46,7 @@ codigo_juego = """
   const canvas = document.getElementById("juego");
   const ctx = canvas.getContext("2d");
 
-  // Recibimos las imágenes inyectadas desde Python
+  // Inyección de imágenes
   const imgSoldado = new Image(); 
   let srcSol = "INYECTAR_SOLDADO";
   if(srcSol.length > 50) imgSoldado.src = srcSol;
@@ -62,7 +61,6 @@ codigo_juego = """
 
   // --- VARIABLES ---
   const SUELO_Y = 170;
-  // He ajustado un poco el tamaño para que el helicóptero se vea imponente
   let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 55, alto: 65, agachado: false };
   let obstaculo = { x: 600, y: SUELO_Y, ancho: 70, alto: 50, tipo: 'tanque' };
   
@@ -74,7 +72,7 @@ codigo_juego = """
   let maxPuntuacion = 0;
   try { maxPuntuacion = localStorage.getItem("realHighScore") || 0; } catch(e) {}
   
-  let velocidadJuego = 6.5; // Un pelín más rápido
+  let velocidadJuego = 6.5; 
   let estado = 'INICIO';
 
   // --- CONTROLES ---
@@ -111,11 +109,14 @@ codigo_juego = """
       obstaculo.x = canvas.width + 50 + Math.random() * 200;
       if (Math.random() < 0.5) {
           obstaculo.tipo = 'helicoptero';
-          // El helicóptero vuela alto
-          obstaculo.y = SUELO_Y - 45; obstaculo.ancho = 90; obstaculo.alto = 45;
+          obstaculo.y = SUELO_Y - 20; // Altura de vuelo corregida
+          obstaculo.ancho = 90; 
+          obstaculo.alto = 45;
       } else {
           obstaculo.tipo = 'tanque';
-          obstaculo.y = SUELO_Y; obstaculo.ancho = 70; obstaculo.alto = 50;
+          obstaculo.y = SUELO_Y; 
+          obstaculo.ancho = 70; 
+          obstaculo.alto = 50;
       }
   }
 
@@ -123,7 +124,6 @@ codigo_juego = """
   function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Suelo realista (Asfalto)
     ctx.fillStyle = "#4a4a4a"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, canvas.height);
     ctx.fillStyle = "#222"; ctx.fillRect(0, SUELO_Y + 50, canvas.width, 10);
 
@@ -131,7 +131,7 @@ codigo_juego = """
     ctx.fillText("RÉCORD: " + Math.floor(maxPuntuacion).toString().padStart(5, '0') + "  BAJAS: " + Math.floor(puntuacion).toString().padStart(5, '0'), canvas.width - 20, 20);
     ctx.textAlign = "left";
 
-    // Dibujar Enemigos
+    // Enemigos
     if (obstaculo.tipo === 'tanque') {
         if(imgTanque.complete && imgTanque.naturalHeight !== 0) {
             ctx.drawImage(imgTanque, obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto);
@@ -149,12 +149,11 @@ codigo_juego = """
         ctx.fillStyle = '#ffa500'; ctx.beginPath(); ctx.arc(explosion.x + 35, explosion.y + 25, 15, 0, Math.PI*2); ctx.fill();
     }
 
-    // Dibujar Jugador
+    // Jugador
     if (estado === 'GAMEOVER') {
         ctx.fillStyle = 'red'; ctx.fillRect(jugador.x, jugador.y + 30, jugador.ancho, jugador.alto - 30);
     } else if (imgSoldado.complete && imgSoldado.naturalHeight !== 0) {
         if (jugador.agachado && jugador.y === SUELO_Y) {
-            // Aplasta la imagen visualmente al agacharse
             ctx.drawImage(imgSoldado, jugador.x, jugador.y + 25, jugador.ancho, jugador.alto - 25);
         } else {
             ctx.drawImage(imgSoldado, jugador.x, jugador.y, jugador.ancho, jugador.alto);
@@ -192,8 +191,8 @@ codigo_juego = """
 
     puntuacion += 0.1; velocidadJuego += 0.002; 
 
-    // Hitbox del obstáculo
-    let cH = { x: obstaculo.x + 10, y: obstaculo.y + 10, w: obstaculo.ancho - 20, h: obstaculo.alto - 20 };
+    // Hitbox del obstáculo ajustada
+    let cH = { x: obstaculo.x + 15, y: obstaculo.y + 15, w: obstaculo.ancho - 30, h: obstaculo.alto - 20 };
 
     for (let i = balas.length - 1; i >= 0; i--) {
         balas[i].x += 15; 
@@ -209,9 +208,12 @@ codigo_juego = """
 
     if (explosion.activa) { explosion.x -= velocidadJuego; explosion.timer--; if (explosion.timer <= 0) explosion.activa = false; }
 
-    // Hitbox del jugador
+    // Hitbox del jugador y agacharse
     let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
-    if (jugador.agachado && jugador.y === SUELO_Y) { dH.y = jugador.y + 30; dH.h = jugador.alto - 30; }
+    if (jugador.agachado && jugador.y === SUELO_Y) { 
+        dH.y = jugador.y + 35; 
+        dH.h = jugador.alto - 35; 
+    }
 
     if (dH.x < cH.x + cH.w && dH.x + dH.w > cH.x && dH.y < cH.y + cH.h && dH.h + dH.y > cH.y) {
         estado = 'GAMEOVER';
@@ -225,15 +227,12 @@ codigo_juego = """
     if (estado === 'JUGANDO') { requestAnimationFrame(bucle); }
   }
 
-  // Dibuja la pantalla inicial al cargar
   dibujar();
-
 </script>
 </body>
 </html>
 """
 
-# Reemplazamos los textos clave en el HTML por el código real de las imágenes
 codigo_juego = codigo_juego.replace("INYECTAR_SOLDADO", codigo_soldado)
 codigo_juego = codigo_juego.replace("INYECTAR_TANQUE", codigo_tanque)
 codigo_juego = codigo_juego.replace("INYECTAR_HELI", codigo_heli)
