@@ -39,10 +39,7 @@ codigo_juego = """
   .btn-fs { background: #8b0000; color: white; border: 2px solid #ff4500; padding: 5px 15px; margin-bottom: 8px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; border-radius: 5px; transition: 0.2s; outline: none; }
   .btn-fs:hover { background: #ff4500; color: black; }
   
-  /* Contenedor del Filtro CRT Retro */
   .arcade-container { position: relative; border: 4px solid #333; border-radius: 5px; box-shadow: 0px 8px 0px #000; overflow: hidden; }
-  
-  /* El efecto de líneas entrelazadas de televisión antigua */
   .arcade-container::after {
       content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
       background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
@@ -142,7 +139,6 @@ codigo_juego = """
   // --- VARIABLES ---
   const SUELO_Y = 200;
   
-  // Stats iniciales ampliables con Roguelite upgrades
   let jugador = { x: 50, y: SUELO_Y, velY: 0, ancho: 45, alto: 55, agachado: false, vidas: 5, maxVidas: 5, invencible: 0, dir: 1, arma: 'normal', armaTimer: 0, dashTimer: 0, dashCooldown: 0, granadas: 1, velocidad: 4, maxBalas: 4 };
   let jefe = { x: 450, y: SUELO_Y, ancho: 80, alto: 60, tipo: 'tanque', hp: 10, maxHp: 10, timer: 0, escudo: false, visible: true, hitFlash: 0 };
   
@@ -155,7 +151,6 @@ codigo_juego = """
   let puntuacion = 0; let siguienteCaja = 100; let modoDificil = false;
   let shakeTimer = 0; let shakeMag = 0;
   
-  // Combo y Métricas de Rango
   let combo = 1;
   let impactosRecibidos = 0;
 
@@ -172,7 +167,6 @@ codigo_juego = """
 
       if (estadoJuego === 'PAUSA') return;
 
-      // Selección de Upgrades en Tienda Roguelite (Teclas 1, 2, 3)
       if (estadoJuego === 'TIENDA') {
           if (e.code === "Digit1" || e.code === "Numpad1") { jugador.maxVidas++; jugador.vidas = jugador.maxVidas; pasarSiguienteNivel(); }
           if (e.code === "Digit2" || e.code === "Numpad2") { jugador.velocidad += 1.5; pasarSiguienteNivel(); }
@@ -189,7 +183,6 @@ codigo_juego = """
       if (e.code === "KeyH" && estadoJuego === 'VICTORIA') { modoDificil = true; iniciarNivel(1); }
       if (e.code === "KeyM" || e.key === "m") { musicaMuted = !musicaMuted; }
 
-      // Disparar
       if ((e.code === "KeyX" || e.key === "x") && estadoJuego === 'JUGANDO' && jugador.dashTimer <= 0) {
           if (cooldownDisparo <= 0) {
               let alt = jugador.agachado ? jugador.y + 30 : jugador.y + 20;
@@ -213,7 +206,6 @@ codigo_juego = """
           }
       }
 
-      // Granada
       if ((e.code === "KeyZ" || e.key === "z") && estadoJuego === 'JUGANDO') {
           if (jugador.granadas > 0) {
               jugador.granadas--; balasEnemigas = []; playSound('grenade'); hacerTemblar(40, 20);
@@ -222,7 +214,6 @@ codigo_juego = """
           }
       }
 
-      // Dash (Habilidad de esquiva e impacto Parry)
       if ((e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC" || e.key === "c") && estadoJuego === 'JUGANDO') {
           if (jugador.dashCooldown <= 0 && jugador.dashTimer <= 0) {
               jugador.dashTimer = 12; jugador.dashCooldown = 60; jugador.invencible = 12; jugador.agachado = false; playSound('dash'); 
@@ -230,7 +221,17 @@ codigo_juego = """
       }
   });
   window.addEventListener('keyup', (e) => { teclas[e.code] = false; });
-  canvas.addEventListener('mousedown', () => { initAudio(); });
+  
+  // SOLUCIÓN AL ARRANQUE CONGELADO: Activa el inicio de nivel al hacer clic
+  canvas.addEventListener('mousedown', () => { 
+      initAudio(); 
+      canvas.focus();
+      if (estadoJuego === 'INICIO' || estadoJuego === 'GAMEOVER' || estadoJuego === 'VICTORIA') {
+          modoDificil = false; 
+          iniciarNivel(1);
+      }
+  });
+  
   document.addEventListener('fullscreenchange', () => { canvas.focus(); });
   canvas.focus();
 
@@ -278,7 +279,6 @@ codigo_juego = """
           explosiones.push({ x: jefe.x, y: jefe.y, timer: 30, color: '#ff4500' });
           
           if (nivel < 5) {
-              // Ir a la tienda Roguelite (excepto en el Modo Difícil, que pasa directo)
               if (modoDificil) { pasarSiguienteNivel(); } 
               else { estadoJuego = 'TIENDA'; }
           } else { estadoJuego = 'VICTORIA'; }
@@ -290,7 +290,6 @@ codigo_juego = """
       setTimeout(() => iniciarNivel(nivel + 1), 500);
   }
 
-  // Calcular Nota Final S, A, B, C, D
   function calcularRango() {
       if (impactosRecibidos === 0) return 'S (PERFECTO)';
       if (impactosRecibidos <= 2) return 'A (COLOSAL)';
@@ -309,7 +308,6 @@ codigo_juego = """
 
   function dispararJefe(x, y, vx, vy, tipo) {
       if (tipo.startsWith('bomba')) {
-          // 1 de cada 4 bombas en nivel 2 y 5 son Rosas (Vulnerables a PARRY)
           let esRosa = (Math.random() < 0.25 && (nivel === 2 || nivel === 5));
           balasEnemigas.push({ x: x, y: y, velX: vx, velY: -2, tipo: tipo, w: 12, h: 12, rebotes: 0, rosa: esRosa });
       } else {
@@ -356,6 +354,20 @@ codigo_juego = """
       }
   }
 
+  function dibujarEntidad(img, x, y, w, h, invertido) {
+      if (!img.complete || img.naturalHeight === 0) return;
+      if (invertido) { ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); ctx.restore(); } 
+      else { ctx.drawImage(img, x, y, w, h); }
+  }
+
+  function dibujarPausa() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0,0,canvas.width, canvas.height);
+      ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 40px 'Courier New'";
+      ctx.fillText("P A U S A", canvas.width/2, canvas.height/2);
+      ctx.font = "16px 'Courier New'"; ctx.fillText("Presiona P para continuar", canvas.width/2, canvas.height/2 + 30);
+      ctx.textAlign = "left";
+  }
+
   function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
     if (shakeTimer > 0) { ctx.translate((Math.random()-0.5)*shakeMag, (Math.random()-0.5)*shakeMag); }
@@ -371,7 +383,6 @@ codigo_juego = """
         lluvia.forEach(l => { ctx.moveTo(l.x, l.y); ctx.lineTo(l.x - 2, l.y + 10); }); ctx.stroke();
     }
 
-    // UI Superior
     ctx.fillStyle = "#d32f2f"; ctx.font = "20px Arial";
     let corazones = ""; for(let v=0; v<jugador.vidas; v++) corazones += "❤️"; ctx.fillText(corazones, 10, 20);
 
@@ -388,7 +399,7 @@ codigo_juego = """
 
     if (estadoJuego === 'JUGANDO') {
         ctx.fillStyle = "#333"; ctx.fillRect(150, 12, 300, 14);
-        ctx.fillStyle = (jefe.hp <= jefe.maxHp*0.5) ? "#ff4500" : "#8b0000"; // Barra naranja en Fase 2
+        ctx.fillStyle = (jefe.hp <= jefe.maxHp*0.5) ? "#ff4500" : "#8b0000"; 
         ctx.fillRect(152, 14, 296 * (Math.max(0, jefe.hp) / jefe.maxHp), 10);
         ctx.fillStyle = "#fff"; ctx.font = "bold 12px 'Courier New'"; ctx.textAlign = "center";
         ctx.fillText(nombresJefes[nivel] + ((jefe.hp <= jefe.maxHp*0.5)?" [FASE 2]":""), canvas.width/2, 23); ctx.textAlign = "left";
@@ -399,7 +410,6 @@ codigo_juego = """
     cajas.forEach(c => { ctx.font = "24px Arial"; ctx.fillText("🎁", c.x, c.y); });
     secuaces.forEach(s => { ctx.fillStyle = '#8b0000'; ctx.fillRect(s.x, s.y, s.w, s.h); ctx.fillStyle = '#ffcc99'; ctx.fillRect(s.x+4, s.y+4, 12, 10); });
 
-    // Jefe
     if ((estadoJuego === 'JUGANDO' || estadoJuego === 'TRANSICION') && jefe.visible) {
         if (jefe.hitFlash > 0) { ctx.globalCompositeOperation = "source-atop"; ctx.filter = "brightness(200%) grayscale(100%)"; }
         if (jefe.tipo === 'tanque') {
@@ -410,18 +420,14 @@ codigo_juego = """
         ctx.filter = "none"; ctx.globalCompositeOperation = "source-over"; 
     }
 
-    // Balas
     balas.forEach(b => { ctx.fillStyle = b.tipo==='laser' ? '#00ffff' : (b.tipo==='parry_return'?'#ff00ff':'#ffaa00'); ctx.fillRect(b.x, b.y, b.w, b.h); });
     balasEnemigas.forEach(be => {
-        ctx.fillStyle = be.rosa ? '#ff00ff' : (be.tipo === 'obus' ? '#ff0000' : '#111'); // Rosa brillante si es vulnerable a PARRY
+        ctx.fillStyle = be.rosa ? '#ff00ff' : (be.tipo === 'obus' ? '#ff0000' : '#111'); 
         ctx.beginPath(); ctx.arc(be.x, be.y, be.rosa ? 7 : 6, 0, Math.PI*2); ctx.fill();
     });
 
-    explosiones.forEach(exp => {
-        ctx.fillStyle = exp.color || '#ff4500'; ctx.beginPath(); ctx.arc(exp.x + 20, exp.y + 20, 30, 0, Math.PI*2); ctx.fill();
-    });
+    explosiones.forEach(exp => { ctx.fillStyle = exp.color || '#ff4500'; ctx.beginPath(); ctx.arc(exp.x + 20, exp.y + 20, 30, 0, Math.PI*2); ctx.fill(); });
 
-    // Jugador
     if (estadoJuego !== 'GAMEOVER') {
         let invertido = jugador.dir === -1;
         if (jugador.dashTimer > 0) {
@@ -440,23 +446,22 @@ codigo_juego = """
     }
     ctx.restore();
 
-    // Pantallas UI fijas
     if (estadoJuego === 'INICIO') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 20px 'Courier New'"; ctx.fillText("CLIC PARA INSERTAR MONEDA Y JUGAR", canvas.width/2, canvas.height/2);
+        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 20px 'Courier New'"; ctx.fillText("CLIC AQUÍ PARA INSERTAR MONEDA Y JUGAR", canvas.width/2, canvas.height/2);
     } else if (estadoJuego === 'TRANSICION') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 28px 'Courier New'"; ctx.fillText(nombresJefes[nivel], canvas.width/2, canvas.height/2);
     } else if (estadoJuego === 'GAMEOVER') {
         ctx.fillStyle = "rgba(100, 0, 0, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 32px 'Courier New'"; ctx.fillText("HAS CAÍDO", canvas.width/2, canvas.height/2 - 25);
-        ctx.font = "bold 16px 'Courier New'"; ctx.fillText("PUNTUACIÓN FINAL: " + puntuacion, canvas.width/2, canvas.height/2 + 10); ctx.fillText("Presiona ESPACIO para reintentar", canvas.width/2, canvas.height/2 + 40);
+        ctx.font = "bold 16px 'Courier New'"; ctx.fillText("PUNTUACIÓN FINAL: " + puntuacion, canvas.width/2, canvas.height/2 + 10); ctx.fillText("Haz clic o presiona ESPACIO para reintentar", canvas.width/2, canvas.height/2 + 40);
     } else if (estadoJuego === 'VICTORIA') {
         ctx.fillStyle = "rgba(0, 40, 0, 0.95)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#ffd700"; ctx.textAlign = "center"; ctx.font = "bold 32px 'Courier New'"; ctx.fillText("¡MISIÓN CUMPLIDA!", canvas.width/2, canvas.height/2 - 50);
         ctx.fillStyle = "#fff"; ctx.font = "bold 18px 'Courier New'"; ctx.fillText("PUNTUACIÓN TOTAL: " + puntuacion, canvas.width/2, canvas.height/2 - 10);
         ctx.fillStyle = "#00ffff"; ctx.fillText("RANGO OBTENIDO: " + calcularRango(), canvas.width/2, canvas.height/2 + 15);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 13px 'Courier New'"; ctx.fillText("[ESPACIO] Jugar Normal  |  [H] MODO DIFÍCIL (Sin cajas)", canvas.width/2, canvas.height/2 + 55);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 13px 'Courier New'"; ctx.fillText("[ESPACIO/CLIC] Jugar Normal  |  [H] MODO DIFÍCIL (Sin cajas)", canvas.width/2, canvas.height/2 + 55);
     } else if (estadoJuego === 'TIENDA') {
         ctx.fillStyle = "rgba(20, 30, 40, 0.95)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#ffff00"; ctx.textAlign = "center"; ctx.font = "bold 22px 'Courier New'"; ctx.fillText("¡JEFE DERROTADO! ELIGE TU RECOMPENSA:", canvas.width/2, 50);
@@ -485,7 +490,6 @@ codigo_juego = """
     }
     for(let i=humo.length-1; i>=0; i--) { humo[i].y += humo[i].velY; humo[i].life--; if(humo[i].life<=0) humo.splice(i,1); }
 
-    // Movimiento
     if (jugador.dashTimer > 0) {
         jugador.dashTimer--; jugador.x += 12 * jugador.dir; 
     } else {
@@ -506,7 +510,6 @@ codigo_juego = """
     let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
     if (jugador.agachado && jugador.y === SUELO_Y) { dH.y = jugador.y + 35; dH.h = jugador.alto - 35; }
 
-    // Secuaces
     for (let i = secuaces.length - 1; i >= 0; i--) {
         let s = secuaces[i]; s.x += s.velX;
         if (s.x < dH.x + dH.w && s.x + s.w > dH.x && s.y < dH.y + dH.h && s.h + s.y > dH.y) {
@@ -515,7 +518,6 @@ codigo_juego = """
         if (s.x < -50 || s.x > canvas.width + 50) secuaces.splice(i, 1);
     }
 
-    // Cajas
     for (let i = cajas.length - 1; i >= 0; i--) {
         let c = cajas[i]; if (c.y < SUELO_Y + 20) c.y += c.velY; 
         if (dH.x < c.x + 24 && dH.x + dH.w > c.x && dH.y < c.y + 24 && dH.h + dH.y > c.y) {
@@ -525,7 +527,6 @@ codigo_juego = """
         }
     }
 
-    // Balas Jugador
     for (let i = balas.length - 1; i >= 0; i--) {
         let b = balas[i]; b.x += (b.tipo==='laser'? 25 : 14) * b.dir; b.y += b.velY; let hit = false;
 
@@ -540,7 +541,7 @@ codigo_juego = """
         if (!hit && jefe.visible && b.x < jH.x + jH.w && b.x + b.w > jH.x && b.y < jH.y + jH.h && b.h + b.y > jH.y) {
             let haceDano = true; if (nivel === 2 && jefe.y < 100) haceDano = false; if (nivel === 3 && jefe.escudo && b.x < jefe.x) haceDano = false; 
             if (haceDano) {
-                let daño = b.tipo === 'parry_return' ? 5 : b.dmg; // El misil del parry quita 5 de vida
+                let daño = b.tipo === 'parry_return' ? 5 : b.dmg; 
                 combo++; puntuacion += 10 * combo; chequearCaja(); danarJefe(daño);
             } else { combo = 1; explosiones.push({ x: b.x, y: b.y - 10, timer: 5, color: '#aaaaaa' }); }
             hit = true;
@@ -550,7 +551,6 @@ codigo_juego = """
         if (b.x < -20 || b.x > canvas.width + 20) { combo = 1; puntuacion = Math.max(0, puntuacion - 1); balas.splice(i, 1); }
     }
 
-    // Balas Enemigas (Físicas, Daño y PARRY)
     for (let i = balasEnemigas.length - 1; i >= 0; i--) {
         let be = balasEnemigas[i];
         if (be.tipo === 'obus') { be.x += be.velX; be.y += be.velY; } 
@@ -564,19 +564,13 @@ codigo_juego = """
             }
         }
         
-        // DETECCIÓN DE COLISIÓN CON EL JUGADOR
         if (be.x < dH.x + dH.w && be.x + be.w > dH.x && be.y < dH.y + dH.h && be.h + be.y > dH.y) {
-            // ¡MECÁNICA DE PARRY EXITOSO!
             if (jugador.dashTimer > 0 && be.rosa) {
                 playSound('parry'); hacerTemblar(10, 8);
                 explosiones.push({ x: be.x, y: be.y, timer: 10, color: '#00ffff' });
-                // Devuelve un misil teledirigido gigante rosa hacia el jefe
                 balas.push({ x: jugador.x + 30, y: jugador.y + 10, w: 25, h: 8, dir: 1, velY: -1, tipo: 'parry_return', dmg: 5 });
-                balasEnemigas.splice(i, 1);
-                continue;
+                balasEnemigas.splice(i, 1); continue;
             }
-            
-            // Recibe daño normal si no estabas haciendo Dash (o si no era una bala rosa)
             recibirDano(); balasEnemigas.splice(i, 1); continue;
         }
         if (be.x < -20 || be.x > canvas.width + 20 || be.y > canvas.height + 50) balasEnemigas.splice(i, 1);
