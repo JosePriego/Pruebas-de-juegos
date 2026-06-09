@@ -14,7 +14,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💥 SHADOW OF PIXEL: ULTIMATE ARCADE")
-st.write("**A/D** = Mover | **ESPACIO** = Saltar | **S** = Agacharse | **X** = Disparar | **C** = Dash (¡y Parry!) | **Z** = Granada | **P** = Pausa")
+st.write("**A/D** = Mover | **ESPACIO** = Saltar | **S** = Agacharse | **X** = Disparar | **C** = Dash | **Z** = Granada | **P** = Pausa")
 
 # --- LA MAGIA DE PYTHON (INYECCIÓN DE IMÁGENES) ---
 def cargar_imagen_local(nombre_archivo):
@@ -161,8 +161,8 @@ codigo_juego = """
       teclas[e.code] = true;
       
       if (e.code === "KeyP" || e.code === "Escape") {
-          if (estadoJuego === 'JUGANDO') { estadoJuego = 'PAUSA'; pararMusica(); dibujarPausa(); return; } 
-          else if (estadoJuego === 'PAUSA') { estadoJuego = 'JUGANDO'; arrancarMusica(); requestAnimationFrame(bucle); return; }
+          if (estadoJuego === 'JUGANDO') { estadoJuego = 'PAUSA'; pararMusica(); return; } 
+          else if (estadoJuego === 'PAUSA') { estadoJuego = 'JUGANDO'; arrancarMusica(); return; }
       }
 
       if (estadoJuego === 'PAUSA') return;
@@ -222,13 +222,22 @@ codigo_juego = """
   });
   window.addEventListener('keyup', (e) => { teclas[e.code] = false; });
   
-  // SOLUCIÓN AL ARRANQUE CONGELADO: Activa el inicio de nivel al hacer clic
-  canvas.addEventListener('mousedown', () => { 
+  // ¡AQUÍ ESTÁ LA MAGIA DEL RATÓN PARA LA TIENDA Y LOS MENÚS!
+  canvas.addEventListener('mousedown', (e) => { 
       initAudio(); 
       canvas.focus();
+      
       if (estadoJuego === 'INICIO' || estadoJuego === 'GAMEOVER' || estadoJuego === 'VICTORIA') {
           modoDificil = false; 
           iniciarNivel(1);
+      } else if (estadoJuego === 'TIENDA') {
+          // Calculamos dónde has hecho clic
+          const rect = canvas.getBoundingClientRect();
+          const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+          
+          if (y > 90 && y < 130) { jugador.maxVidas++; jugador.vidas = jugador.maxVidas; pasarSiguienteNivel(); }
+          else if (y > 130 && y < 170) { jugador.velocidad += 1.5; pasarSiguienteNivel(); }
+          else if (y > 170 && y < 220) { jugador.maxBalas += 2; pasarSiguienteNivel(); }
       }
   });
   
@@ -287,6 +296,8 @@ codigo_juego = """
 
   function pasarSiguienteNivel() {
       estadoJuego = 'TRANSICION'; transicionTimer = 100;
+      // Arrancamos el motor de nuevo si estaba congelado en la tienda
+      requestAnimationFrame(bucle);
       setTimeout(() => iniciarNivel(nivel + 1), 500);
   }
 
@@ -369,7 +380,8 @@ codigo_juego = """
   }
 
   function dibujar() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
     if (shakeTimer > 0) { ctx.translate((Math.random()-0.5)*shakeMag, (Math.random()-0.5)*shakeMag); }
 
     let climaMalo = (nivel % 2 === 0); ctx.fillStyle = climaMalo ? "#2a3a4a" : "#4a5a6a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -383,6 +395,7 @@ codigo_juego = """
         lluvia.forEach(l => { ctx.moveTo(l.x, l.y); ctx.lineTo(l.x - 2, l.y + 10); }); ctx.stroke();
     }
 
+    // UI Superior
     ctx.fillStyle = "#d32f2f"; ctx.font = "20px Arial";
     let corazones = ""; for(let v=0; v<jugador.vidas; v++) corazones += "❤️"; ctx.fillText(corazones, 10, 20);
 
@@ -446,9 +459,10 @@ codigo_juego = """
     }
     ctx.restore();
 
+    // Pantallas UI fijas
     if (estadoJuego === 'INICIO') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 20px 'Courier New'"; ctx.fillText("CLIC AQUÍ PARA INSERTAR MONEDA Y JUGAR", canvas.width/2, canvas.height/2);
+        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 20px 'Courier New'"; ctx.fillText("CLIC AQUÍ PARA JUGAR", canvas.width/2, canvas.height/2);
     } else if (estadoJuego === 'TRANSICION') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 28px 'Courier New'"; ctx.fillText(nombresJefes[nivel], canvas.width/2, canvas.height/2);
@@ -465,15 +479,31 @@ codigo_juego = """
     } else if (estadoJuego === 'TIENDA') {
         ctx.fillStyle = "rgba(20, 30, 40, 0.95)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#ffff00"; ctx.textAlign = "center"; ctx.font = "bold 22px 'Courier New'"; ctx.fillText("¡JEFE DERROTADO! ELIGE TU RECOMPENSA:", canvas.width/2, 50);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 15px 'Courier New'";
-        ctx.fillText("[1] BLINDAJE PESADO (+1 Vida Máxima y Cura)", canvas.width/2, 110);
-        ctx.fillText("[2] BOTAS LIGERAS (+Velocidad de Movimiento)", canvas.width/2, 150);
-        ctx.fillText("[3] CARGADOR AMPLIADO (+2 Balas en pantalla)", canvas.width/2, 190);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 14px 'Courier New'";
+        
+        // Cajas de selección para el ratón
+        ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(50, 90, 500, 40);
+        ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(50, 135, 500, 40);
+        ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(50, 180, 500, 40);
+        
+        ctx.fillStyle = "#fff";
+        ctx.fillText("[1] BLINDAJE PESADO (+1 Vida Máxima y Cura)", canvas.width/2, 115);
+        ctx.fillText("[2] BOTAS LIGERAS (+Velocidad de Movimiento)", canvas.width/2, 160);
+        ctx.fillText("[3] CARGADOR AMPLIADO (+2 Balas en pantalla)", canvas.width/2, 205);
     }
   }
 
+  // EL CORAZÓN DEL MOTOR
   function bucle() {
-    if (estadoJuego === 'PAUSA' || estadoJuego === 'TIENDA') return; 
+    if (shakeTimer > 0) shakeTimer--; 
+    
+    // Si estamos en pausa o en la tienda, seguimos pintando pero NO calculamos físicas
+    if (estadoJuego === 'PAUSA' || estadoJuego === 'TIENDA') { 
+        dibujar(); 
+        requestAnimationFrame(bucle); 
+        return; 
+    } 
+    
     if (estadoJuego === 'TRANSICION') { transicionTimer--; if (transicionTimer <= 0) estadoJuego = 'JUGANDO'; dibujar(); requestAnimationFrame(bucle); return; }
     if (estadoJuego !== 'JUGANDO') return;
 
@@ -481,7 +511,6 @@ codigo_juego = """
     if (cooldownDisparo > 0) cooldownDisparo--;
     if (jugador.armaTimer > 0) { jugador.armaTimer--; if (jugador.armaTimer<=0) jugador.arma = 'normal'; }
     if (jugador.dashCooldown > 0) jugador.dashCooldown--;
-    if (shakeTimer > 0) shakeTimer--; 
 
     if (nivel % 2 === 0) { lluvia.forEach(l => { l.y += l.velY; l.x -= 2; if(l.y>canvas.height) {l.y=-10; l.x=Math.random()*canvas.width+50;} }); }
     for(let i=casquillos.length-1; i>=0; i--) {
@@ -490,6 +519,7 @@ codigo_juego = """
     }
     for(let i=humo.length-1; i>=0; i--) { humo[i].y += humo[i].velY; humo[i].life--; if(humo[i].life<=0) humo.splice(i,1); }
 
+    // Movimiento
     if (jugador.dashTimer > 0) {
         jugador.dashTimer--; jugador.x += 12 * jugador.dir; 
     } else {
@@ -510,6 +540,7 @@ codigo_juego = """
     let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
     if (jugador.agachado && jugador.y === SUELO_Y) { dH.y = jugador.y + 35; dH.h = jugador.alto - 35; }
 
+    // Secuaces
     for (let i = secuaces.length - 1; i >= 0; i--) {
         let s = secuaces[i]; s.x += s.velX;
         if (s.x < dH.x + dH.w && s.x + s.w > dH.x && s.y < dH.y + dH.h && s.h + s.y > dH.y) {
@@ -518,6 +549,7 @@ codigo_juego = """
         if (s.x < -50 || s.x > canvas.width + 50) secuaces.splice(i, 1);
     }
 
+    // Cajas
     for (let i = cajas.length - 1; i >= 0; i--) {
         let c = cajas[i]; if (c.y < SUELO_Y + 20) c.y += c.velY; 
         if (dH.x < c.x + 24 && dH.x + dH.w > c.x && dH.y < c.y + 24 && dH.h + dH.y > c.y) {
@@ -527,6 +559,7 @@ codigo_juego = """
         }
     }
 
+    // Balas Jugador
     for (let i = balas.length - 1; i >= 0; i--) {
         let b = balas[i]; b.x += (b.tipo==='laser'? 25 : 14) * b.dir; b.y += b.velY; let hit = false;
 
@@ -551,6 +584,7 @@ codigo_juego = """
         if (b.x < -20 || b.x > canvas.width + 20) { combo = 1; puntuacion = Math.max(0, puntuacion - 1); balas.splice(i, 1); }
     }
 
+    // Balas Enemigas
     for (let i = balasEnemigas.length - 1; i >= 0; i--) {
         let be = balasEnemigas[i];
         if (be.tipo === 'obus') { be.x += be.velX; be.y += be.velY; } 
@@ -579,7 +613,7 @@ codigo_juego = """
     for (let i = explosiones.length - 1; i >= 0; i--) { explosiones[i].timer--; if (explosiones[i].timer <= 0)  explosiones.splice(i, 1); }
 
     dibujar();
-    if (estadoJuego === 'JUGANDO' || estadoJuego === 'TRANSICION') { requestAnimationFrame(bucle); }
+    requestAnimationFrame(bucle); 
   }
 
   dibujar();
