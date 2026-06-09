@@ -34,15 +34,40 @@ codigo_juego = """
 <html>
 <head>
 <style>
-  body { display: flex; justify-content: center; margin: 0; background-color: #1a1a1a; overflow: hidden; user-select: none; font-family: 'Courier New', Courier, monospace; }
-  canvas { border: 4px solid #111; background-color: #7a8a99; border-radius: 5px; cursor: pointer; box-shadow: 0px 8px 0px #000; }
+  body { display: flex; flex-direction: column; align-items: center; margin: 0; padding-top: 5px; background-color: #1a1a1a; overflow: hidden; user-select: none; font-family: 'Courier New', Courier, monospace; }
+  
+  /* Estilos del botón de Pantalla Completa */
+  .btn-fs { background: #8b0000; color: white; border: 2px solid #ff4500; padding: 5px 15px; margin-bottom: 8px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; border-radius: 5px; transition: 0.2s; outline: none; }
+  .btn-fs:hover { background: #ff4500; color: black; }
+  
+  /* Estilos del Canvas normal y en Pantalla Completa */
+  canvas { border: 4px solid #111; background-color: #7a8a99; border-radius: 5px; cursor: pointer; box-shadow: 0px 8px 0px #000; outline: none; }
+  canvas:fullscreen { width: 100vw; height: 100vh; object-fit: contain; border: none; background-color: #1a1a1a; }
+  canvas:-webkit-full-screen { width: 100vw; height: 100vh; object-fit: contain; border: none; background-color: #1a1a1a; }
 </style>
 </head>
 <body>
+
+<button class="btn-fs" id="btn-fs">🔲 PANTALLA COMPLETA</button>
+
 <canvas id="juego" width="600" height="280" tabindex="1"></canvas>
+
 <script>
   const canvas = document.getElementById("juego");
   const ctx = canvas.getContext("2d");
+  const btnFs = document.getElementById("btn-fs");
+
+  // Lógica de Pantalla Completa
+  btnFs.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+          canvas.requestFullscreen().catch(err => {
+              alert("Tu navegador bloquea la pantalla completa: " + err.message);
+          });
+      } else {
+          document.exitFullscreen();
+      }
+      canvas.focus(); // Devolver el control al juego inmediatamente
+  });
 
   const imgSoldado = new Image(); let srcSol = "INYECTAR_SOLDADO"; if(srcSol.length > 50) imgSoldado.src = srcSol;
   const imgTanque = new Image(); let srcTan = "INYECTAR_TANQUE"; if(srcTan.length > 50) imgTanque.src = srcTan;
@@ -115,7 +140,7 @@ codigo_juego = """
   let nivel = 1; let nombresJefes = ["", "NIVEL 1: EL NOVATO", "NIVEL 2: EL CÓNDOR", "NIVEL 3: EL ESCUDO", "NIVEL 4: EL FANTASMA", "NIVEL 5: EL MEGA-COLOSO"];
   
   let balas = []; let balasEnemigas = []; let explosiones = []; let cajas = []; let casquillos = []; let lluvia = [];
-  let humo = []; let secuaces = []; // Nuevos arrays para partículas y esbirros
+  let humo = []; let secuaces = []; 
   
   for(let i=0; i<60; i++) lluvia.push({x: Math.random()*600, y: Math.random()*280, velY: Math.random()*5+10});
 
@@ -135,7 +160,7 @@ codigo_juego = """
           else if (estadoJuego === 'PAUSA') { estadoJuego = 'JUGANDO'; arrancarMusica(); requestAnimationFrame(bucle); return; }
       }
 
-      if (estadoJuego === 'PAUSA') return; // Bloquear controles si está en pausa
+      if (estadoJuego === 'PAUSA') return;
 
       if ((e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW")) {
           e.preventDefault(); initAudio(); 
@@ -173,7 +198,7 @@ codigo_juego = """
           if (jugador.granadas > 0) {
               jugador.granadas--; balasEnemigas = []; playSound('grenade'); hacerTemblar(40, 20);
               for(let i=0; i<15; i++) explosiones.push({x: Math.random()*canvas.width, y: Math.random()*SUELO_Y, timer: 20 + Math.random()*20, color: '#ff4500'});
-              secuaces = []; // Borra a los esbirros también
+              secuaces = []; 
               danarJefe(6); 
           }
       }
@@ -187,6 +212,11 @@ codigo_juego = """
   });
   window.addEventListener('keyup', (e) => { teclas[e.code] = false; });
   canvas.addEventListener('mousedown', () => { initAudio(); });
+  
+  // Solución para que el canvas siempre tenga el foco y detecte teclas incluso en pantalla completa
+  canvas.addEventListener('click', () => { canvas.focus(); });
+  document.addEventListener('fullscreenchange', () => { canvas.focus(); });
+  
   canvas.focus();
 
   function iniciarNivel(n) {
@@ -245,26 +275,21 @@ codigo_juego = """
 
   function actualizarIAJefe() {
       jefe.timer++; 
-      
-      // FASE 2: Si tiene menos del 50% de vida, dispara un 40% más rápido
       let enFase2 = (jefe.hp <= jefe.maxHp * 0.5);
       let velDisp = modoDificil ? 0.7 : 1; 
-      if (enFase2) velDisp *= 0.6; // Multiplicador de velocidad de ataque (temporizadores más cortos)
+      if (enFase2) velDisp *= 0.6; 
 
       if (jefe.hitFlash > 0) jefe.hitFlash--;
 
-      // Humo negro crítico (Fase 2 Visual)
       if (enFase2 && jefe.visible && Math.random() < 0.3) {
           humo.push({ x: jefe.x + 20 + Math.random()*40, y: jefe.y + 10, velY: -2 - Math.random(), life: 30 });
       }
 
-      // Spawns de Secuaces (Solo niveles 3 y 5)
       if ((nivel === 3 || nivel === 5) && Math.random() < (modoDificil ? 0.015 : 0.005)) {
           let ladoDer = Math.random() < 0.5;
           secuaces.push({ x: ladoDer ? canvas.width + 20 : -30, y: SUELO_Y + 20, w: 20, h: 35, velX: ladoDer ? -2 : 2 });
       }
 
-      // IA Jefes
       if (nivel === 1) { 
           jefe.x += Math.sin(jefe.timer * 0.05) * 1.5; 
           if (jefe.timer % Math.floor(80 * velDisp) === 0) dispararJefe(jefe.x, jefe.y + 25, -5, 0, 'obus');
@@ -298,7 +323,6 @@ codigo_juego = """
   }
 
   function dibujarPausa() {
-      // Dibuja una capa negra semitransparente por encima de lo que ya estaba renderizado
       ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0,0,canvas.width, canvas.height);
       ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 40px 'Courier New'";
       ctx.fillText("P A U S A", canvas.width/2, canvas.height/2);
@@ -350,15 +374,13 @@ codigo_juego = """
         ctx.fillText(nombresJefes[nivel], canvas.width/2, 27); ctx.textAlign = "left";
     }
 
-    // Humo negro de jefe herido
     humo.forEach(h => { ctx.fillStyle = `rgba(30,30,30,${h.life/30})`; ctx.beginPath(); ctx.arc(h.x, h.y, 8, 0, Math.PI*2); ctx.fill(); });
     ctx.fillStyle = '#ffd700'; casquillos.forEach(c => ctx.fillRect(c.x, c.y, 4, 2));
     cajas.forEach(c => { ctx.font = "24px Arial"; ctx.fillText("🎁", c.x, c.y); });
 
-    // Secuaces
     secuaces.forEach(s => {
-        ctx.fillStyle = '#8b0000'; ctx.fillRect(s.x, s.y, s.w, s.h); // Cuerpo
-        ctx.fillStyle = '#ffcc99'; ctx.fillRect(s.x+4, s.y+4, 12, 10); // Cara simple
+        ctx.fillStyle = '#8b0000'; ctx.fillRect(s.x, s.y, s.w, s.h); 
+        ctx.fillStyle = '#ffcc99'; ctx.fillRect(s.x+4, s.y+4, 12, 10); 
     });
 
     if ((estadoJuego === 'JUGANDO' || estadoJuego === 'TRANSICION') && jefe.visible) {
@@ -409,7 +431,8 @@ codigo_juego = """
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 32px 'Courier New'"; ctx.fillText(nombresJefes[nivel], canvas.width/2, canvas.height/2);
     } else if (estadoJuego === 'GAMEOVER') {
         ctx.fillStyle = "rgba(100, 0, 0, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 36px 'Courier New'"; ctx.fillText("HAS CAÍDO", canvas.width/2, canvas.height/2 - 25);
+        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 36px 'Courier New'";
+        ctx.fillText("HAS CAÍDO", canvas.width/2, canvas.height/2 - 25);
         ctx.font = "bold 18px 'Courier New'"; ctx.fillText("PUNTUACIÓN FINAL: " + puntuacion, canvas.width/2, canvas.height/2 + 10); ctx.fillText("Presiona ESPACIO para reiniciar", canvas.width/2, canvas.height/2 + 40);
     } else if (estadoJuego === 'VICTORIA') {
         ctx.fillStyle = "rgba(0, 50, 0, 0.9)"; ctx.fillRect(0,0,canvas.width, canvas.height);
@@ -421,7 +444,7 @@ codigo_juego = """
 
   // --- BUCLE DE LÓGICA ---
   function bucle() {
-    if (estadoJuego === 'PAUSA') return; // En pausa el motor se congela
+    if (estadoJuego === 'PAUSA') return; 
     if (estadoJuego === 'TRANSICION') { transicionTimer--; if (transicionTimer <= 0) estadoJuego = 'JUGANDO'; dibujar(); requestAnimationFrame(bucle); return; }
     if (estadoJuego !== 'JUGANDO') return;
 
@@ -431,7 +454,6 @@ codigo_juego = """
     if (jugador.dashCooldown > 0) jugador.dashCooldown--;
     if (shakeTimer > 0) shakeTimer--; 
 
-    // Partículas visuales
     if (nivel % 2 === 0) { lluvia.forEach(l => { l.y += l.velY; l.x -= 2; if(l.y>canvas.height) {l.y=-10; l.x=Math.random()*canvas.width+50;} }); }
     for(let i=casquillos.length-1; i>=0; i--) {
         let c = casquillos[i]; c.velY += 0.5; c.x += c.velX; c.y += c.velY; 
@@ -461,7 +483,6 @@ codigo_juego = """
     let dH = { x: jugador.x + 10, y: jugador.y + 5, w: jugador.ancho - 20, h: jugador.alto - 10 };
     if (jugador.agachado && jugador.y === SUELO_Y) { dH.y = jugador.y + 35; dH.h = jugador.alto - 35; }
 
-    // Colisiones con Secuaces
     for (let i = secuaces.length - 1; i >= 0; i--) {
         let s = secuaces[i]; s.x += s.velX;
         if (s.x < dH.x + dH.w && s.x + s.w > dH.x && s.y < dH.y + dH.h && s.h + s.y > dH.y) {
@@ -482,7 +503,6 @@ codigo_juego = """
         let b = balas[i]; b.x += (b.tipo==='laser'? 25 : 14) * b.dir; b.y += b.velY;
         let hit = false;
 
-        // Bala vs Secuaz
         for (let j = secuaces.length - 1; j >= 0; j--) {
             let s = secuaces[j];
             if (b.x < s.x + s.w && b.x + b.w > s.x && b.y < s.y + s.h && b.h + b.y > s.y) {
@@ -491,7 +511,6 @@ codigo_juego = """
             }
         }
         
-        // Bala vs Jefe
         if (!hit && jefe.visible && b.x < jH.x + jH.w && b.x + b.w > jH.x && b.y < jH.y + jH.h && b.h + b.y > jH.y) {
             let haceDano = true;
             if (nivel === 2 && jefe.y < 100) haceDano = false; 
@@ -540,4 +559,4 @@ codigo_juego = codigo_juego.replace("INYECTAR_SOLDADO", codigo_soldado)
 codigo_juego = codigo_juego.replace("INYECTAR_TANQUE", codigo_tanque)
 codigo_juego = codigo_juego.replace("INYECTAR_HELI", codigo_heli)
 
-components.html(codigo_juego, height=310)
+components.html(codigo_juego, height=350)
