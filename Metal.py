@@ -153,6 +153,9 @@ codigo_juego = """
   
   let combo = 1;
   let impactosRecibidos = 0;
+  
+  // SOLUCIÓN DEL BUG: Variable de control del motor
+  let animando = false;
 
   function hacerTemblar(duracion, magnitud) { shakeTimer = duracion; shakeMag = magnitud; }
   
@@ -161,8 +164,14 @@ codigo_juego = """
       teclas[e.code] = true;
       
       if (e.code === "KeyP" || e.code === "Escape") {
-          if (estadoJuego === 'JUGANDO') { estadoJuego = 'PAUSA'; pararMusica(); return; } 
-          else if (estadoJuego === 'PAUSA') { estadoJuego = 'JUGANDO'; arrancarMusica(); return; }
+          if (estadoJuego === 'JUGANDO') { 
+              estadoJuego = 'PAUSA'; pararMusica(); dibujarPausa(); return; 
+          } 
+          else if (estadoJuego === 'PAUSA') { 
+              estadoJuego = 'JUGANDO'; arrancarMusica(); 
+              if (!animando) { animando = true; requestAnimationFrame(bucle); }
+              return; 
+          }
       }
 
       if (estadoJuego === 'PAUSA') return;
@@ -222,7 +231,6 @@ codigo_juego = """
   });
   window.addEventListener('keyup', (e) => { teclas[e.code] = false; });
   
-  // ¡AQUÍ ESTÁ LA MAGIA DEL RATÓN PARA LA TIENDA Y LOS MENÚS!
   canvas.addEventListener('mousedown', (e) => { 
       initAudio(); 
       canvas.focus();
@@ -231,7 +239,6 @@ codigo_juego = """
           modoDificil = false; 
           iniciarNivel(1);
       } else if (estadoJuego === 'TIENDA') {
-          // Calculamos dónde has hecho clic
           const rect = canvas.getBoundingClientRect();
           const y = (e.clientY - rect.top) * (canvas.height / rect.height);
           
@@ -268,7 +275,8 @@ codigo_juego = """
       if (nivel === 5) { jefe.tipo='coloso'; jefe.maxHp=Math.floor(70*mult); jefe.x=450; jefe.y=SUELO_Y-40; jefe.ancho=100; jefe.alto=100; }
       
       jefe.hp = jefe.maxHp; estadoJuego = 'TRANSICION'; transicionTimer = 150;
-      if (n === 1) requestAnimationFrame(bucle); 
+      
+      if (n === 1 && !animando) { animando = true; requestAnimationFrame(bucle); } 
   }
 
   function recibirDano() {
@@ -296,8 +304,7 @@ codigo_juego = """
 
   function pasarSiguienteNivel() {
       estadoJuego = 'TRANSICION'; transicionTimer = 100;
-      // Arrancamos el motor de nuevo si estaba congelado en la tienda
-      requestAnimationFrame(bucle);
+      if (!animando) { animando = true; requestAnimationFrame(bucle); }
       setTimeout(() => iniciarNivel(nivel + 1), 500);
   }
 
@@ -395,7 +402,6 @@ codigo_juego = """
         lluvia.forEach(l => { ctx.moveTo(l.x, l.y); ctx.lineTo(l.x - 2, l.y + 10); }); ctx.stroke();
     }
 
-    // UI Superior
     ctx.fillStyle = "#d32f2f"; ctx.font = "20px Arial";
     let corazones = ""; for(let v=0; v<jugador.vidas; v++) corazones += "❤️"; ctx.fillText(corazones, 10, 20);
 
@@ -459,7 +465,6 @@ codigo_juego = """
     }
     ctx.restore();
 
-    // Pantallas UI fijas
     if (estadoJuego === 'INICIO') {
         ctx.fillStyle = "rgba(0, 0, 0, 0.85)"; ctx.fillRect(0,0,canvas.width, canvas.height);
         ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "bold 20px 'Courier New'"; ctx.fillText("CLIC AQUÍ PARA JUGAR", canvas.width/2, canvas.height/2);
@@ -481,7 +486,6 @@ codigo_juego = """
         ctx.fillStyle = "#ffff00"; ctx.textAlign = "center"; ctx.font = "bold 22px 'Courier New'"; ctx.fillText("¡JEFE DERROTADO! ELIGE TU RECOMPENSA:", canvas.width/2, 50);
         ctx.fillStyle = "#fff"; ctx.font = "bold 14px 'Courier New'";
         
-        // Cajas de selección para el ratón
         ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(50, 90, 500, 40);
         ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(50, 135, 500, 40);
         ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.fillRect(50, 180, 500, 40);
@@ -493,24 +497,18 @@ codigo_juego = """
     }
   }
 
-  // EL CORAZÓN DEL MOTOR
   function bucle() {
-    if (shakeTimer > 0) shakeTimer--; 
-    
-    // Si estamos en pausa o en la tienda, seguimos pintando pero NO calculamos físicas
-    if (estadoJuego === 'PAUSA' || estadoJuego === 'TIENDA') { 
-        dibujar(); 
-        requestAnimationFrame(bucle); 
-        return; 
-    } 
-    
+    if (estadoJuego === 'PAUSA' || estadoJuego === 'TIENDA') { animando = false; return; } 
     if (estadoJuego === 'TRANSICION') { transicionTimer--; if (transicionTimer <= 0) estadoJuego = 'JUGANDO'; dibujar(); requestAnimationFrame(bucle); return; }
-    if (estadoJuego !== 'JUGANDO') return;
+    if (estadoJuego !== 'JUGANDO') { animando = false; return; }
+    
+    animando = true; // El motor está girando seguro
 
     if (jugador.invencible > 0) jugador.invencible--;
     if (cooldownDisparo > 0) cooldownDisparo--;
     if (jugador.armaTimer > 0) { jugador.armaTimer--; if (jugador.armaTimer<=0) jugador.arma = 'normal'; }
     if (jugador.dashCooldown > 0) jugador.dashCooldown--;
+    if (shakeTimer > 0) shakeTimer--; 
 
     if (nivel % 2 === 0) { lluvia.forEach(l => { l.y += l.velY; l.x -= 2; if(l.y>canvas.height) {l.y=-10; l.x=Math.random()*canvas.width+50;} }); }
     for(let i=casquillos.length-1; i>=0; i--) {
@@ -566,7 +564,9 @@ codigo_juego = """
         for (let j = secuaces.length - 1; j >= 0; j--) {
             let s = secuaces[j];
             if (b.x < s.x + s.w && b.x + b.w > s.x && b.y < s.y + s.h && b.h + b.y > s.y) {
-                explosiones.push({x: s.x, y: s.y, timer: 5, color: '#ff4500'}); combo++; puntuacion += 5 * combo;
+                explosiones.push({x: s.x, y: s.y, timer: 5, color: '#ff4500'}); 
+                combo = Math.min(4, combo + 1); // CAP DE COMBO (MÁXIMO X4)
+                puntuacion += 5 * combo;
                 secuaces.splice(j, 1); hit = true; break;
             }
         }
@@ -575,7 +575,8 @@ codigo_juego = """
             let haceDano = true; if (nivel === 2 && jefe.y < 100) haceDano = false; if (nivel === 3 && jefe.escudo && b.x < jefe.x) haceDano = false; 
             if (haceDano) {
                 let daño = b.tipo === 'parry_return' ? 5 : b.dmg; 
-                combo++; puntuacion += 10 * combo; chequearCaja(); danarJefe(daño);
+                combo = Math.min(4, combo + 1); // CAP DE COMBO AL ACERTAR AL JEFE (MÁXIMO X4)
+                puntuacion += 10 * combo; chequearCaja(); danarJefe(daño);
             } else { combo = 1; explosiones.push({ x: b.x, y: b.y - 10, timer: 5, color: '#aaaaaa' }); }
             hit = true;
         }
